@@ -19,7 +19,17 @@ const createNew = async (req, res, next) => {
       'string.max': 'Title max 50 chars',
       'string.trim': 'Title must not have leading or trailing whitespace'
     }),
-    description: Joi.string().required().min(3).max(256).trim().strict()
+    description: Joi.string().optional().min(3).max(256).trim().strict(),
+    author: Joi.string().required().min(3).max(50).trim().strict(),
+    duration: Joi.object({
+      hours: Joi.number().integer().min(0).required(),
+      minutes: Joi.number().integer().min(0).max(59).required()
+    }),
+    quantity: Joi.number().integer().min(10).required(),
+    price: Joi.alternatives().try(
+      Joi.number().min(0).required(),
+      Joi.string().valid('Free').required()
+    )
   })
 
   try {
@@ -34,6 +44,6 @@ const createNew = async (req, res, next) => {
   }
 }
 
-export const couseValidation = {
+export const courseValidation = {
   createNew
 }

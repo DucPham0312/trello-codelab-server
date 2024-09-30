@@ -5,7 +5,7 @@ import exitHook from 'async-exit-hook'
 import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { env } from '~/config/environment'
 import { APIs_V1 } from '~/routes/v1/index'
-// import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
+import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 
 const START_SERVER = () => {
   const app = express()
@@ -17,7 +17,7 @@ const START_SERVER = () => {
   app.use('/v1', APIs_V1)
 
   // //Middlewares xử lý lỗi tập chung
-  // app.use(errorHandlingMiddleware)
+  app.use(errorHandlingMiddleware)
 
   app.listen(env.APP_PORT, env.APP_HOST, () => {
     console.log(`Hello ${env.AUTHOR}, Back-end Server is running successfully at http://${env.APP_HOST}:${env.APP_PORT}/`)
