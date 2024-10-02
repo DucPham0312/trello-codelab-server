@@ -30,7 +30,7 @@ const getDetails = async (courseId) => {
   try {
     const course = await courseModel.getDetails(courseId)
     if (!course) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Course not found!')
     }
 
     return course

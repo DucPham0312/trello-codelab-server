@@ -10,16 +10,12 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   slug: Joi.string().required().min(3).trim().strict(),
   description: Joi.string().optional().min(3).max(256).trim().strict(),
   author: Joi.string().required().min(3).max(50).trim().strict(),
-  duration: Joi.object({
-    hours: Joi.number().integer().min(0).required(),
-    minutes: Joi.number().integer().min(0).max(59).required()
-  }),
-  quantity: Joi.number().integer().min(10).required(),
+  level: Joi.string().valid('Basic', 'Intermediate', 'Advanced').required(),
+  lessons: Joi.number().integer().min(10).required(),
   price: Joi.alternatives().try(
     Joi.number().min(0).required(),
     Joi.string().valid('Free').required()
   ),
-
   memberIds: Joi.array().items(
     Joi.object().keys({
       memberId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),

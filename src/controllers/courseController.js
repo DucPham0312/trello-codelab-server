@@ -1,5 +1,5 @@
 import { StatusCodes } from 'http-status-codes'
-import { courseService } from '~/services/boardService'
+import { courseService } from '~/services/courseService'
 
 const createNew = async (req, res, next) => {
   try {
@@ -18,12 +18,12 @@ const createNew = async (req, res, next) => {
 const getDetails = async (req, res, next) => {
   try {
     // console.log('req.params: ', req.params)
-    const boardId = req.params.id
+    const courseId = req.params.id
 
-    const board = await courseService.getDetails(boardId)
+    const course = await courseService.getDetails(courseId)
 
     //Có kết quả thì trả về Client
-    res.status(StatusCodes.OK).json(board)
+    res.status(StatusCodes.OK).json(course)
   } catch (error) { next(error) }
 }
 

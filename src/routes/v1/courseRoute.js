@@ -11,4 +11,8 @@ Router.route('/')
   })
   .post(courseValidation.createNew, courseController.createNew)
 
+Router.route('/:id')
+  .get(courseController.getDetails)
+  .put() //update
+
 export const courseRoute = Router
