@@ -2,6 +2,8 @@ import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
+import { COURSE_LEVEL } from '~/utils/variable'
+
 
 //Define Collection (Name & schema)
 const COURSE_COLLECTION_NAME = 'Courses'
@@ -10,7 +12,7 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   slug: Joi.string().required().min(3).trim().strict(),
   description: Joi.string().optional().min(3).max(256).trim().strict(),
   author: Joi.string().required().min(3).max(50).trim().strict(),
-  level: Joi.string().valid('Basic', 'Intermediate', 'Advanced').required(),
+  level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
   lessons: Joi.number().integer().min(10).required(),
   price: Joi.alternatives().try(
     Joi.number().min(0).required(),
