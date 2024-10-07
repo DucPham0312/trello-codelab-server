@@ -13,6 +13,7 @@ Router.route('/')
 
 Router.route('/:id')
   .get(courseController.getDetails)
-  .put() //update
+  .put(courseValidation.update, courseController.update)
+  .delete(courseController.deleteItem, courseController.deleteItem)
 
 export const courseRoute = Router

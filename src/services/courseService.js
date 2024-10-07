@@ -19,7 +19,7 @@ const creatNew = async (reqBody) => {
     const getNewCourse = await courseModel.findOneById(createdCourse.insertedId)
 
     //Làm thêm các xử lí logic khác với các COllection khác tùy đặc thù dự án...vv
-    //Bắn email, notification  về cho admin khi có một cái board mới đc tạo..vv
+    //Bắn email, notification  về cho admin khi có một cái course mới đc tạo..vv
 
     //Trả kết quả về ( trong Service luôn phải có return)
     return getNewCourse
@@ -37,7 +37,31 @@ const getDetails = async (courseId) => {
   } catch (error) { throw error }
 }
 
+const update = async (courseId, reqBody) => {
+  try {
+    const updateData = {
+      ...reqBody,
+      updatedAt: Date.now()
+    }
+    const updatedCourse = await courseModel.getDetails(courseId, updateData)
+
+    return updatedCourse
+  } catch (error) { throw error }
+}
+
+const deleteItem = async (courseId) => {
+  try {
+    //xóa course
+    await courseModel.deleteOneById(courseId)
+    //xóa toàn bộ card thuộc cl
+    // await columnModel.deleteManyByColumnId(courseId)
+
+    return { deleteResult: 'Column and its Card deleted successfully!' }
+  } catch (error) { throw error }
+}
 export const courseService = {
   creatNew,
-  getDetails
+  getDetails,
+  update,
+  deleteItem
 }

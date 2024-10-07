@@ -27,7 +27,29 @@ const getDetails = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const update = async (req, res, next) => {
+  try {
+    const courseId = req.params.id
+    const updatedCourse = await courseService.update(courseId, req.body)
+
+    //Có kết quả thì trả về Client
+    res.status(StatusCodes.OK).json(updatedCourse)
+  } catch (error) { next(error) }
+}
+
+const deleteItem = async (req, res, next) => {
+  try {
+    const courseId = req.params.id
+    const result = await courseService.update(courseId)
+
+    //Có kết quả thì trả về Client
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
 export const courseController = {
   createNew,
-  getDetails
+  getDetails,
+  update,
+  deleteItem
 }

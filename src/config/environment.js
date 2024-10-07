@@ -9,5 +9,16 @@ export const env = {
 
   BUILD_MODE: process.env.BUILD_MODE,
 
-  AUTHOR: process.env.AUTHOR
+  AUTHOR: process.env.AUTHOR,
+
+  // APIKEY: process.env.APIKEY,
+  // AUTHDOMAIN: process.env.AUTHDOMAIN,
+  // PROJECTID: process.env.PROJECTID,
+  // STORAGEBUCKET: process.env.STORAGEBUCKET,
+  // MESSAGINGSENDERID: process.env.MESSAGINGSENDERID,
+  // APPID: process.env.APPID,
+  // MEASUREMENTID: process.env.MEASUREMENTID
+
+
+  FIREBASE_CONFIG: process.env.FIREBASE_CONFIG
 }

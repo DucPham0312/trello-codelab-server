@@ -2,15 +2,11 @@
 import Joi from 'joi'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
+import { COURSE_LEVEL } from '~/utils/variable'
+import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 
 
 const createNew = async (req, res, next) => {
-  /**
-   * NOTE: Mặc định không cần phải custom message ở BE làm gì vì để cho FE tự validate và custom message phía FE cho đẹp.
-   * BE chỉ cần validate Đảm Bapr Dữ Liệu Chuẩn Xác, và trả về message mặc định từ thư viện là được.
-   * Quan Trọng: Việc validate dữ liệu BẮT BUỘC phải có ở BE vì đây là điểm cuối để lưu dữ liệu vào Database.
-   * Và thông thường trong thực tế nên Validate dữ liệu ở cả hai phía.
-   */
   const corectCondition = Joi.object({
     title: Joi.string().required().min(3).max(50).trim().strict().messages({
       'any.required': 'Title is required',
@@ -21,8 +17,13 @@ const createNew = async (req, res, next) => {
     }),
     description: Joi.string().optional().min(3).max(256).trim().strict(),
     author: Joi.string().required().min(3).max(50).trim().strict(),
-    level: Joi.string().valid('Basic', 'Intermediate', 'Advanced').required(),
-    lessons: Joi.number().integer().min(10).required(),
+    catalog: Joi.string().required().trim().min(3).strict(),
+    level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
+    lessons: Joi.number().integer().min(5).required(),
+    duration: Joi.object({
+      hours: Joi.number().integer().min(0).required(),
+      minutes: Joi.number().integer().min(0).max(59).required()
+    }),
     price: Joi.alternatives().try(
       Joi.number().min(0).required(),
       Joi.string().valid('Free').required()
@@ -41,6 +42,51 @@ const createNew = async (req, res, next) => {
   }
 }
 
+const update = async (req, res, next) => {
+  const corectCondition = Joi.object({
+    title: Joi.string().required().min(3).max(50).trim().strict(),
+    description: Joi.string().optional().min(3).max(256).trim().strict(),
+    author: Joi.string().required().min(3).max(50).trim().strict(),
+    catalog: Joi.string().required().trim().min(3).strict(),
+    level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
+    lessons: Joi.number().integer().min(5).required(),
+    duration: Joi.object({
+      hours: Joi.number().integer().min(0).required(),
+      minutes: Joi.number().integer().min(0).max(59).required()
+    }),
+    price: Joi.alternatives().try(
+      Joi.number().min(0).required(),
+      Joi.string().valid('Free').required()
+    )
+  })
+
+  try {
+    await corectCondition.validateAsync(req.body, {
+      abortEarly: false,
+      allowUnknown: true
+    })
+    next()
+  } catch (error) {
+    next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
+  }
+}
+
+const deleteItem = async (req, res, next) => {
+  const corectCondition = Joi.object({
+    id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  })
+  try {
+    await corectCondition.validateAsync(req.params)
+    next()
+  } catch (error) {
+    // const errorMessage = new Error(error).message
+    // const customError = new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, errorMessage)
+    next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
+  }
+}
+
 export const courseValidation = {
-  createNew
+  createNew,
+  update,
+  deleteItem
 }
