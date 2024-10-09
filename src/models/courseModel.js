@@ -4,7 +4,6 @@ import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { COURSE_LEVEL } from '~/utils/variable'
 
-
 //Define Collection (Name & schema)
 const COURSE_COLLECTION_NAME = 'Courses'
 const COURSE_COLLECTION_SCHEMA = Joi.object({

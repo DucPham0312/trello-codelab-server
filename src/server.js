@@ -7,6 +7,7 @@ import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { env } from '~/config/environment'
 import { APIs_V1 } from '~/routes/v1/index'
 import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
+import { CONNECT_FB } from '~/config/firebase'
 
 const START_SERVER = () => {
   const app = express()
@@ -42,6 +43,9 @@ const START_SERVER = () => {
     await CONNECT_DB()
     console.log('Conected to MongoDB Cloud Atlas!')
 
+    console.log('Conecting to Firebase...')
+    await CONNECT_FB.initializeFirebaseApp()
+    console.log('Conected to Fisebase!')
     //Khởi đôngj server Back-end sau khi Connect Database thành công
     START_SERVER()
   } catch (error) {
