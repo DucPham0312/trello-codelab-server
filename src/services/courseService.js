@@ -3,13 +3,15 @@ import { slugify } from '~/utils/formatters'
 import { courseModel } from '~/models/courseModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
+import { cloneDeep } from 'lodash'
+
 
 const creatNew = async (reqBody) => {
   try {
     //Xử lý logic dữ liệu tùy đặc thù dự án
     const newCourse = {
       ...reqBody,
-      slug: slugify(reqBody.title)
+      slug: slugify(reqBody.course_name)
     }
 
     //Gọi tới tầng Model để xử lí lưu bản ghi newCourse vào trong Database
@@ -33,7 +35,20 @@ const getDetails = async (courseId) => {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Course not found!')
     }
 
-    return course
+    const resCourse = cloneDeep(course)
+    //đưa quiz về đúng lesson của nó
+    resCourse.Lessons.forEach(lesson => {
+      //Convert ObjectId về string
+      // lesson.Quizs = resCourse.Quizs.filter(quiz => quiz.lesson_id.toString() === lesson._id.toString())
+
+      //Cách 2 vì ObjectId trong MongoDB có support method .equals
+      lesson.Quizs = resCourse.Quizs.filter(quiz => quiz.lesson_id.equals(lesson._id))
+
+    })
+    //Xóa quiz khỏi mảng ban đầu
+    delete resCourse.Quizs
+
+    return resCourse
   } catch (error) { throw error }
 }
 

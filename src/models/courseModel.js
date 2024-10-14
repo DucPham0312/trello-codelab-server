@@ -3,30 +3,49 @@ import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { COURSE_LEVEL } from '~/utils/variable'
+import { lessonModel } from '~/models/lessonModel'
+import { quizModel } from '~/models/quizModel'
 
 //Define Collection (Name & schema)
 const COURSE_COLLECTION_NAME = 'Courses'
 const COURSE_COLLECTION_SCHEMA = Joi.object({
-  title: Joi.string().required().min(3).max(50).trim().strict(),
+  course_name: Joi.string().required().min(3).max(50).trim().strict(),
   slug: Joi.string().required().min(3).trim().strict(),
   description: Joi.string().optional().min(3).max(256).trim().strict(),
   author: Joi.string().required().min(3).max(50).trim().strict(),
-  catalog: Joi.string().required().trim().min(3).strict(),
+  lessons: Joi.number().integer().min(5).required(),
+  duration: Joi.number().integer().min(0).required(),
   level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
-  lessons: Joi.number().integer().min(10).required(),
-  duration: Joi.object({
-    hours: Joi.number().integer().min(0).required(),
-    minutes: Joi.number().integer().min(0).max(59).required()
-  }),
+  language: Joi.string().required().trim().strict(),
   price: Joi.alternatives().try(
-    Joi.number().min(0).required(),
-    Joi.string().valid('Free').required()
+    Joi.string().valid('Free').required(),
+    Joi.object({
+      amount: Joi.number().required(),
+      currency: Joi.string().required().trim().strict(),
+      discount: Joi.object({
+        percentage: Joi.number().required()
+      })
+    })
   ),
+  star: Joi.number().integer().required(),
+  catalog: Joi.string().required().trim().min(3).strict(),
+  course_image: Joi.string().required().trim().strict(),
+  completion_certificate: Joi.boolean().required(),
+  enrollment_status: Joi.string().valid('Open', 'Closed').required(),
   memberIds: Joi.array().items(
     Joi.object().keys({
       memberId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
       completed: Joi.number().integer().min(0).default(0)
     })
+  ).default([]),
+  instructorIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
+  lessonIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
+  revieweIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
@@ -62,10 +81,26 @@ const findOneById = async (id) => {
 const getDetails = async (id) => {
   try {
     //tạm giống hệt hàm findOneById_ update aggregate sau
-    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOne({
-      _id: new ObjectId(String(id))
-    })
-    return result
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).aggregate([
+      { $match: {
+        _id: new ObjectId(String(id)),
+        _destroy: false
+      } },
+      { $lookup: {
+        from: lessonModel.LESSON_COLLECTION_NAME,
+        localField: '_id',
+        foreignField: 'course_Id',
+        as: 'Lessons'
+      } },
+      { $lookup: {
+        from: quizModel.QUIZ_COLLECTION_NAME,
+        localField: '_id',
+        foreignField: 'course_Id',
+        as: 'Quizs'
+      } }
+    ]).toArray()
+
+    return result[0] || {}
   } catch (error) { throw new Error(error) }
 }
 

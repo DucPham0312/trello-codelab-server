@@ -1,14 +1,19 @@
-// import { firebaseModel } from '~/models/firebaseModel'
+import { CONNECT_FB } from '~/config/firebase'
 
-// const fetchAllUsersData = async () => {
-//   try {
-//     return await firebaseModel.fetchAllUsersDataFromFirebase()
-//   } catch (error) {
-//     // Xử lý lỗi từ model ở đây, ví dụ thông báo lỗi hoặc xử lý khác
-//     throw new Error('Failed to fetch all users data')
-//   }
-// }
+const getAllUsersFromFirestore = async () => {
+  try {
+    const userRef = await CONNECT_FB.firestore().collection('users')
+    const response = await userRef.get()
+    let dataUsers = []
+    response.forEach(doc => {
+      dataUsers.push({ id: doc.id, ...doc.data() })
+    })
+    return dataUsers
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
-// export const firebaseService = {
-//   fetchAllUsersData
-// }
+export const firebaseService = {
+  getAllUsersFromFirestore
+}

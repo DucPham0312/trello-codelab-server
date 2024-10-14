@@ -1,30 +1,22 @@
 import express from 'express'
 import { CONNECT_FB } from '~/config/firebase'
 import { StatusCodes } from 'http-status-codes'
+import { firebaseController } from '~/controllers/firebaseController'
 
 const Router = express.Router()
 
 Router.route('/')
-  .get(async (req, res) => {
-    try {
-      const userRef = await CONNECT_FB.firestore().collection('users')
-      const respose = await userRef.get()
-      let dataUsers = []
-      respose.forEach(doc => {
-        dataUsers.push({ id:doc.id, ...doc.data() })
-      })
-      res.send(dataUsers)
-    } catch (error) {
-      throw new Error(error)
-    }
-  })
+  .get(firebaseController.getAllUsers)
   .post(async (req, res) => {
     try {
       // const id = req.body.email
       const userJson = {
         email: req.body.email,
         firstname: req.body.firstname,
-        lastname: req.body.lastname
+        lastname: req.body.lastname,
+        provider: 'email',
+        created: new Date(),
+        registered: false // Ban đầu là false
       }
 
       //set id = email

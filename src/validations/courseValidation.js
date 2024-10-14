@@ -8,7 +8,7 @@ import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 
 const createNew = async (req, res, next) => {
   const corectCondition = Joi.object({
-    title: Joi.string().required().min(3).max(50).trim().strict().messages({
+    course_name: Joi.string().required().min(3).max(50).trim().strict().messages({
       'any.required': 'Title is required',
       'string.empty': 'Title is not allowed to be empty',
       'string.min': 'Title min 3 chars',
@@ -17,17 +17,25 @@ const createNew = async (req, res, next) => {
     }),
     description: Joi.string().optional().min(3).max(256).trim().strict(),
     author: Joi.string().required().min(3).max(50).trim().strict(),
-    catalog: Joi.string().required().trim().min(3).strict(),
-    level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
     lessons: Joi.number().integer().min(5).required(),
-    duration: Joi.object({
-      hours: Joi.number().integer().min(0).required(),
-      minutes: Joi.number().integer().min(0).max(59).required()
-    }),
+    duration: Joi.number().integer().min(0).required(),
+    level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
+    language: Joi.string().required().trim().strict(),
     price: Joi.alternatives().try(
-      Joi.number().min(0).required(),
-      Joi.string().valid('Free').required()
-    )
+      Joi.string().valid('Free').required(),
+      Joi.object({
+        amount: Joi.number().required(),
+        currency: Joi.string().required().trim().strict(),
+        discount: Joi.object({
+          percentage: Joi.number().required()
+        })
+      })
+    ),
+    star: Joi.number().integer().required(),
+    catalog: Joi.string().required().trim().min(3).strict(),
+    course_image: Joi.string().required().trim().strict(),
+    completion_certificate: Joi.boolean().required(),
+    enrollment_status: Joi.string().valid('Open', 'Closed').required()
   })
 
   try {

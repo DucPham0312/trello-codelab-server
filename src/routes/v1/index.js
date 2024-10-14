@@ -1,6 +1,9 @@
 import express from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { courseRoute } from '~/routes/v1/courseRoute'
+import { lessonRoute } from '~/routes/v1/lessonRoute'
+import { quizRoute } from '~/routes/v1/quizRoute'
+
 
 const Router = express.Router()
 
@@ -11,5 +14,10 @@ Router.get('/status', (req, res) => {
 
 //Board APIs
 Router.use('/courses', courseRoute)
+
+Router.use('/lessons', lessonRoute)
+
+Router.use('/quizs', quizRoute)
+
 
 export const APIs_V1 = Router
