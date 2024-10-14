@@ -6,6 +6,7 @@ import exitHook from 'async-exit-hook'
 import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { env } from '~/config/environment'
 import { APIs_V1 } from '~/routes/v1/index'
+import { APIs_fbase } from '~/routes/fbase/index'
 import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 import { CONNECT_FB } from '~/config/firebase'
 
@@ -17,8 +18,12 @@ const START_SERVER = () => {
   //enable req.body json data
   app.use(express.json())
 
+  // Sử dụng middleware express.urlencoded để phân tích dữ liệu từ form
+  app.use(express.urlencoded({ extended: true }))
+
   // //Use API V1
   app.use('/v1', APIs_V1)
+  app.use('/firebase', APIs_fbase)
 
   // //Middlewares xử lý lỗi tập chung
   app.use(errorHandlingMiddleware)
@@ -44,7 +49,7 @@ const START_SERVER = () => {
     console.log('Conected to MongoDB Cloud Atlas!')
 
     console.log('Conecting to Firebase...')
-    await CONNECT_FB.initializeFirebaseApp()
+    await CONNECT_FB.connectFirebase()
     console.log('Conected to Fisebase!')
     //Khởi đôngj server Back-end sau khi Connect Database thành công
     START_SERVER()
