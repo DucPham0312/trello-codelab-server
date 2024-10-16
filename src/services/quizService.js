@@ -1,5 +1,6 @@
 import { slugify } from '~/utils/formatters'
 import { quizModel } from '~/models/quizModel'
+import { lessonModel } from '~/models/lessonModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
@@ -13,7 +14,9 @@ const creatNew = async (reqBody) => {
     const createdQuiz = await quizModel.createNew(newQuiz)
     const getNewQuiz = await quizModel.findOneById(createdQuiz.insertedId)
 
-    //...
+    if (getNewQuiz) {
+      await lessonModel.pushQuizIds(getNewQuiz)
+    }
 
     return getNewQuiz
   } catch (error) { throw error }

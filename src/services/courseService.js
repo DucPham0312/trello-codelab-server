@@ -58,7 +58,7 @@ const update = async (courseId, reqBody) => {
       ...reqBody,
       updatedAt: Date.now()
     }
-    const updatedCourse = await courseModel.getDetails(courseId, updateData)
+    const updatedCourse = await courseModel.update(courseId, updateData)
 
     return updatedCourse
   } catch (error) { throw error }

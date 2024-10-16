@@ -104,6 +104,18 @@ const getDetails = async (id) => {
   } catch (error) { throw new Error(error) }
 }
 
+//Push lessonId vào cuối lessonIds
+const pushLessonIds = async (lesson) => {
+  try {
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(lesson.course_Id)) },
+      { $push: { lessonIds: new ObjectId(String(lesson._id)) } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw error }
+}
+
 //Update Course
 const update = async (courseId, updateData) => {
   try {
@@ -113,6 +125,10 @@ const update = async (courseId, updateData) => {
         delete updateData[fieldName]
       }
     })
+
+    //Dữ liệu từ FE liên quan ObId xử lí
+    if (updateData.lesson_id) updateData.lesson_id = new ObjectId(String(updateData.lesson_id))
+
     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(String(courseId)) },
       { $set: updateData },
@@ -137,6 +153,7 @@ export const courseModel = {
   createNew,
   findOneById,
   getDetails,
+  pushLessonIds,
   update,
   deleteOneById
 }

@@ -10,7 +10,9 @@ const QUIZ_COLLECTION_SCHEMA = Joi.object({
   lesson_id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
   question: Joi.string().required(),
   options: Joi.array().items(Joi.string()).min(2).unique().required(),
-  answer: Joi.string().valid(Joi.ref('options')).required(),
+  // answer: Joi.string().valid(Joi.ref('options')).required(),
+  answer: Joi.string().required(),
+
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
@@ -24,8 +26,14 @@ const validateBeforeCreate = async (data) => {
 const createNew = async (data) => {
   try {
     const validData = await validateBeforeCreate(data)
-    const createdCourse = await GET_DB().collection(QUIZ_COLLECTION_NAME).insertOne(validData)
-    return createdCourse
+    const newQuizToAdd = {
+      ...validData,
+      course_Id: new ObjectId(String(validData.course_Id)),
+      lesson_id: new ObjectId(String(validData.lesson_id))
+
+    }
+    const createdQuiz = await GET_DB().collection(QUIZ_COLLECTION_NAME).insertOne(newQuizToAdd)
+    return createdQuiz
   } catch (error) { throw new Error(error) }
 }
 

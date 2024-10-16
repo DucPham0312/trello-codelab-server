@@ -52,25 +52,29 @@ const createNew = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   const corectCondition = Joi.object({
-    title: Joi.string().required().min(3).max(50).trim().strict(),
+    title: Joi.string().min(3).max(50).trim().strict(),
     description: Joi.string().optional().min(3).max(256).trim().strict(),
-    author: Joi.string().required().min(3).max(50).trim().strict(),
-    catalog: Joi.string().required().trim().min(3).strict(),
-    level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3).required(),
-    lessons: Joi.number().integer().min(5).required(),
+    author: Joi.string().min(3).max(50).trim().strict(),
+    catalog: Joi.string().trim().min(3).strict(),
+    level: Joi.string().valid(COURSE_LEVEL.LEVEL1, COURSE_LEVEL.LEVEL2, COURSE_LEVEL.LEVEL3),
+    lessons: Joi.number().integer().min(5),
     duration: Joi.object({
-      hours: Joi.number().integer().min(0).required(),
-      minutes: Joi.number().integer().min(0).max(59).required()
+      hours: Joi.number().integer().min(0),
+      minutes: Joi.number().integer().min(0).max(59)
     }),
     price: Joi.alternatives().try(
-      Joi.number().min(0).required(),
-      Joi.string().valid('Free').required()
-    )
+      Joi.number().min(0),
+      Joi.string().valid('Free')
+    ),
+    lessonIds: Joi.array().items(
+      Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+    ).default([])
   })
 
   try {
     await corectCondition.validateAsync(req.body, {
       abortEarly: false,
+      //Không cần đẩy 1 số field lên
       allowUnknown: true
     })
     next()

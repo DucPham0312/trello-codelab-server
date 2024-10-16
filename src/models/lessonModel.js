@@ -23,6 +23,8 @@ const LESSON_COLLECTION_SCHEMA = Joi.object({
   _destroy: Joi.boolean().default(false)
 })
 
+const INVALID_UPDATE_FIELDS = ['_id', 'course_Id', 'createdAt']
+
 const validateBeforeCreate = async (data) => {
   return await LESSON_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
@@ -30,8 +32,12 @@ const validateBeforeCreate = async (data) => {
 const createNew = async (data) => {
   try {
     const validData = await validateBeforeCreate(data)
-    const createdCourse = await GET_DB().collection(LESSON_COLLECTION_NAME).insertOne(validData)
-    return createdCourse
+    const newColumnToAdd = {
+      ...validData,
+      course_Id: new ObjectId(String(validData.course_Id))
+    }
+    const createdLesson = await GET_DB().collection(LESSON_COLLECTION_NAME).insertOne(newColumnToAdd)
+    return createdLesson
   } catch (error) { throw new Error(error) }
 }
 
@@ -44,9 +50,43 @@ const findOneById = async (id) => {
   } catch (error) { throw new Error(error) }
 }
 
+const pushQuizIds = async (quiz) => {
+  try {
+    const result = await GET_DB().collection(LESSON_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(quiz.lesson_id)) },
+      { $push: { quizIds: new ObjectId(String(quiz._id)) } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw error }
+}
+
+const update = async (lessonId, updateData) => {
+  try {
+    //Lọc field không cho phép cập nhật
+    Object.keys(updateData).forEach( fieldName => {
+      if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+        delete updateData[fieldName]
+      }
+    })
+
+    //Dữ liệu từ FE liên quan ObId xử lí
+    if (updateData.lesson_id) updateData.lesson_id = new ObjectId(String(updateData.lesson_id))
+
+    const result = await GET_DB().collection(LESSON_COLLECTION_SCHEMA).findOneAndUpdate(
+      { _id: new ObjectId(String(lessonId)) },
+      { $set: updateData },
+      { returnDocument: 'after' } //Trả về kết quả mới sau khi cập nhật
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const lessonModel = {
   LESSON_COLLECTION_NAME,
   LESSON_COLLECTION_SCHEMA,
   createNew,
-  findOneById
+  findOneById,
+  pushQuizIds,
+  update
 }
