@@ -1,10 +1,8 @@
-import { slugify } from '~/utils/formatters'
 import { lessonModel } from '~/models/lessonModel'
 import { courseModel } from '~/models/courseModel'
 import { quizModel } from '~/models/quizModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
-import { cloneDeep } from 'lodash'
 
 const creatNew = async (reqBody) => {
   try {

@@ -91,6 +91,15 @@ const deleteOneById = async (lessonid) => {
   } catch (error) { throw new Error(error) }
 }
 
+const deleteManyByCourseId = async (courseId) => {
+  try {
+    const result = await GET_DB().collection(LESSON_COLLECTION_NAME).deleteMany({
+      course_Id: new ObjectId(String(courseId))
+    })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const lessonModel = {
   LESSON_COLLECTION_NAME,
   LESSON_COLLECTION_SCHEMA,
@@ -98,5 +107,6 @@ export const lessonModel = {
   findOneById,
   pushQuizIds,
   update,
-  deleteOneById
+  deleteOneById,
+  deleteManyByCourseId
 }

@@ -68,6 +68,14 @@ const createNew = async (data) => {
   } catch (error) { throw new Error(error) }
 }
 
+const getAllCourses = async () => {
+  try {
+    const courses = await GET_DB().collection(COURSE_COLLECTION_NAME).find({}).toArray()
+
+    return courses
+  } catch (error) { throw new Error(error) }
+}
+
 const findOneById = async (id) => {
   try {
     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOne({
@@ -162,6 +170,7 @@ export const courseModel = {
   COURSE_COLLECTION_NAME,
   COURSE_COLLECTION_SCHEMA,
   createNew,
+  getAllCourses,
   findOneById,
   getDetails,
   pushLessonIds,

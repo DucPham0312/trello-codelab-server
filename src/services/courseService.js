@@ -4,7 +4,8 @@ import { courseModel } from '~/models/courseModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
-
+import { lessonModel } from '~/models/lessonModel'
+import { quizModel } from '~/models/quizModel'
 
 const creatNew = async (reqBody) => {
   try {
@@ -26,6 +27,10 @@ const creatNew = async (reqBody) => {
     //Trả kết quả về ( trong Service luôn phải có return)
     return getNewCourse
   } catch (error) { throw error }
+}
+
+const getAllCourses = async () => {
+  return await courseModel.getAllCourses()
 }
 
 const getDetails = async (courseId) => {
@@ -68,8 +73,10 @@ const deleteItem = async (courseId) => {
   try {
     //xóa course
     await courseModel.deleteOneById(courseId)
-    //xóa toàn bộ card thuộc cl
-    // await columnModel.deleteManyByColumnId(courseId)
+
+    await lessonModel.deleteManyByCourseId(courseId)
+
+    await quizModel.deleteManyByCourseId(courseId)
 
     return { deleteResult: 'Successfully!' }
   } catch (error) { throw error }
@@ -77,6 +84,7 @@ const deleteItem = async (courseId) => {
 
 export const courseService = {
   creatNew,
+  getAllCourses,
   getDetails,
   update,
   deleteItem

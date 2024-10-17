@@ -15,6 +15,14 @@ const createNew = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const getAllCourses = async (req, res, next) => {
+  try {
+    const courses = await courseService.getAllCourses()
+    //Có kết quả thì trả về Client
+    res.status(StatusCodes.OK).json(courses)
+  } catch (error) { next(error) }
+}
+
 const getDetails = async (req, res, next) => {
   try {
     // console.log('req.params: ', req.params)
@@ -40,7 +48,7 @@ const update = async (req, res, next) => {
 const deleteItem = async (req, res, next) => {
   try {
     const courseId = req.params.id
-    const result = await courseService.update(courseId)
+    const result = await courseService.deleteItem(courseId)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.OK).json(result)
@@ -49,6 +57,7 @@ const deleteItem = async (req, res, next) => {
 
 export const courseController = {
   createNew,
+  getAllCourses,
   getDetails,
   update,
   deleteItem

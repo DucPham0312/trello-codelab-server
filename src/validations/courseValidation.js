@@ -91,8 +91,6 @@ const deleteItem = async (req, res, next) => {
     await corectCondition.validateAsync(req.params)
     next()
   } catch (error) {
-    // const errorMessage = new Error(error).message
-    // const customError = new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, errorMessage)
     next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
   }
 }

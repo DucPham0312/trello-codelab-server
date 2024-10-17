@@ -55,10 +55,20 @@ const deleteManyByLessonId = async (lessonid) => {
   } catch (error) { throw new Error(error) }
 }
 
+const deleteManyByCourseId = async (lessonid) => {
+  try {
+    const result = await GET_DB().collection(QUIZ_COLLECTION_NAME).deleteMany({
+      course_Id: new ObjectId(String(lessonid))
+    })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const quizModel = {
   QUIZ_COLLECTION_NAME,
   QUIZ_COLLECTION_SCHEMA,
   createNew,
   findOneById,
-  deleteManyByLessonId
+  deleteManyByLessonId,
+  deleteManyByCourseId
 }

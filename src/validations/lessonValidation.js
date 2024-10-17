@@ -54,7 +54,6 @@ const deleteItem = async (req, res, next) => {
   const corectCondition = Joi.object({
     id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   })
-
   try {
     await corectCondition.validateAsync(req.params)
     next()
