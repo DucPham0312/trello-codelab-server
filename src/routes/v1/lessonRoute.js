@@ -9,5 +9,6 @@ Router.route('/')
 
 Router.route('/:id')
   .put(lessonValidation.update, lessonController.update)
+  .delete(lessonValidation.deleteItem, lessonController.deleteItem)
 
 export const lessonRoute = Router

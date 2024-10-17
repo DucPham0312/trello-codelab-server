@@ -116,6 +116,17 @@ const pushLessonIds = async (lesson) => {
   } catch (error) { throw error }
 }
 
+const pullLessonIds = async (lesson) => {
+  try {
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(lesson.course_Id)) },
+      { $pull: { lessonIds: new ObjectId(String(lesson._id)) } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw error }
+}
+
 //Update Course
 const update = async (courseId, updateData) => {
   try {
@@ -155,5 +166,6 @@ export const courseModel = {
   getDetails,
   pushLessonIds,
   update,
-  deleteOneById
+  deleteOneById,
+  pullLessonIds
 }

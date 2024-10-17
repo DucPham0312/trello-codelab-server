@@ -18,7 +18,18 @@ const update = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const deleteItem = async (req, res, next) => {
+  try {
+    const lessonId = req.params.id
+    const result = await lessonService.deleteItem(lessonId)
+
+    //Có kết quả thì trả về Client
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
 export const lessonController = {
   createNew,
-  update
+  update,
+  deleteItem
 }

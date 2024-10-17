@@ -11,7 +11,7 @@ const createNew = async (req, res, next) => {
     lesson_id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
     question: Joi.string().required(),
     options: Joi.array().items(Joi.string()).min(2).unique().required(),
-    // answer: Joi.string().valid(Joi.ref('options')).required()
+    // answer: Joi.string().valid(Joi.in('$options')).required()
     answer: Joi.string().required()
   })
 

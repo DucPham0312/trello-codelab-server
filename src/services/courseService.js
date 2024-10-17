@@ -71,9 +71,10 @@ const deleteItem = async (courseId) => {
     //xóa toàn bộ card thuộc cl
     // await columnModel.deleteManyByColumnId(courseId)
 
-    return { deleteResult: 'Column and its Card deleted successfully!' }
+    return { deleteResult: 'Successfully!' }
   } catch (error) { throw error }
 }
+
 export const courseService = {
   creatNew,
   getDetails,

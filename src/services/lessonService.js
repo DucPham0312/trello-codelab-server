@@ -1,9 +1,10 @@
 import { slugify } from '~/utils/formatters'
 import { lessonModel } from '~/models/lessonModel'
+import { courseModel } from '~/models/courseModel'
+import { quizModel } from '~/models/quizModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
-import { courseModel } from '~/models/courseModel'
 
 const creatNew = async (reqBody) => {
   try {
@@ -37,7 +38,28 @@ const update = async (lesson_Id, reqBody) => {
   } catch (error) { throw error }
 }
 
+const deleteItem = async (lesson_Id) => {
+  try {
+    const targetLesson = await lessonModel.findOneById(lesson_Id)
+    if (!targetLesson) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Lesson not found!')
+    }
+    //Xoa lesson
+    await lessonModel.deleteOneById(lesson_Id)
+
+    //Xoa quizs of lesson
+    await quizModel.deleteManyByLessonId(lesson_Id)
+
+    //Delete lessonIds of Coures
+    await courseModel.pullLessonIds(targetLesson)
+
+    return { deleteResult: 'Lesson and its Quiz deleted successfully!' }
+  } catch (error) { throw error }
+}
+
+
 export const lessonService = {
   creatNew,
-  update
+  update,
+  deleteItem
 }

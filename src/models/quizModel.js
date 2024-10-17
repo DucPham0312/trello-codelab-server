@@ -46,9 +46,19 @@ const findOneById = async (id) => {
   } catch (error) { throw new Error(error) }
 }
 
+const deleteManyByLessonId = async (lessonid) => {
+  try {
+    const result = await GET_DB().collection(QUIZ_COLLECTION_NAME).deleteMany({
+      lesson_id: new ObjectId(String(lessonid))
+    })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const quizModel = {
   QUIZ_COLLECTION_NAME,
   QUIZ_COLLECTION_SCHEMA,
   createNew,
-  findOneById
+  findOneById,
+  deleteManyByLessonId
 }
