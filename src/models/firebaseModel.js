@@ -1,47 +1,28 @@
-import Joi from 'joi'
-import { GET_DB } from '~/config/db'
+import { CONNECT_DB, GET_DB, CLOSE_DB } from '~/config/mongodb'
 import { firebaseService } from '~/services/firebaseService'
 
-const USER_COLLECTION_NAME = 'Users'
-const USER_COLLECTION_SCHEMA = Joi.object({
-  email: Joi.string().email().required().regex(/@gmail.com$/),
-  firstname: Joi.string().min(2).max(20).required(),
-  lastname: Joi.string().required().min(2).max(20),
-  provider: Joi.string().required(),
-  registered: Joi.boolean().default(false),
-  created: Joi.date().default(() => new Date(), 'current date'),
-
-  createdAt: Joi.date().timestamp('javascript').default(Date.now),
-  updatedAt: Joi.date().timestamp('javascript').default(null),
-  _destroy: Joi.boolean().default(false)
-})
-
-const validateBeforeCreate = async (data) => {
-  return await USER_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
-}
-
-const saveUsersToMongoDB = async (usersData) => {
+const saveUsersToMongoDB = async (req, res) => {
   try {
-    const validData = await validateBeforeCreate(usersData)
+    // Kết nối tới MongoDB
+    await CONNECT_DB()
 
-    const result = await GET_DB().collection(USER_COLLECTION_NAME).insertMany(validData)
-    return result
-  } catch (error) {
-    throw new Error(error)
-  }
-}
+    // Lấy dữ liệu từ Firebase Firestore
+    const dataUsers = await firebaseService.getAllUsersFromFirestore()
 
-const saveUsersFromFirebaseToMongoDB = async () => {
-  try {
-    const usersFromFirebase = await firebaseService.getAllUsersFromFirestore() // Sử dụng hàm lấy dữ liệu từ Firebase
-    const result = await saveUsersToMongoDB(usersFromFirebase)
-    return result
+    // Lưu dữ liệu vào MongoDB
+    const db = GET_DB()
+    const usersCollection = db.collection('Users')
+    await usersCollection.insertMany(dataUsers)
+
+    res.status(200).json({ message: 'Data synced from Firestore to MongoDB successfully' })
   } catch (error) {
-    throw new Error(error)
+    res.status(500).json({ error: error.message })
+  } finally {
+    // Đóng kết nối MongoDB sau khi hoàn thành
+    await CLOSE_DB()
   }
 }
 
 export const firebaseModel = {
-  saveUsersToMongoDB,
-  saveUsersFromFirebaseToMongoDB
+  saveUsersToMongoDB
 }

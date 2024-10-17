@@ -10,6 +10,7 @@ const getAllUsers = async (req, res) => {
   }
 }
 
+
 export const firebaseController = {
   getAllUsers
 }
