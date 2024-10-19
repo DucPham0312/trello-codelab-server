@@ -26,12 +26,11 @@ const createNew = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   const corectCondition = Joi.object({
-    course_Id: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
     lesson_name: Joi.string().min(3).max(50).trim().strict(),
-    lesson_duration: Joi.number().integer().min(0).required(),
+    lesson_duration: Joi.number().integer().min(0),
     content: Joi.string().optional().trim().strict(),
     video_url: Joi.string().trim().strict(),
-    rating: Joi.number().min(0).max(5).required(),
+    rating: Joi.number().min(0).max(5),
     resource_url: Joi.string().trim().strict(),
     quizIds: Joi.array().items(
       Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)

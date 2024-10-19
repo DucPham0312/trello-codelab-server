@@ -24,6 +24,21 @@ const creatNew = async (reqBody) => {
   } catch (error) { throw error }
 }
 
+const getAllLessons = async () => {
+  return await lessonModel.getAllLessons()
+}
+
+const getDetails = async (lessonId) => {
+  try {
+    const lesson = await lessonModel.getDetails(lessonId)
+    if (!lesson) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Lesson not found!')
+    }
+
+    return lesson
+  } catch (error) { throw error }
+}
+
 const update = async (lesson_Id, reqBody) => {
   try {
     const updateData = {
@@ -58,6 +73,8 @@ const deleteItem = async (lesson_Id) => {
 
 export const lessonService = {
   creatNew,
+  getAllLessons,
+  getDetails,
   update,
   deleteItem
 }

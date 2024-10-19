@@ -2,6 +2,7 @@ import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
+import { quizModel } from '~/models/quizModel'
 
 
 // Define Collection (name & schema)
@@ -41,12 +42,40 @@ const createNew = async (data) => {
   } catch (error) { throw new Error(error) }
 }
 
+const getAllLessons = async () => {
+  try {
+    const lessons = await GET_DB().collection(LESSON_COLLECTION_NAME).find({}).toArray()
+
+    return lessons
+  } catch (error) { throw new Error(error) }
+}
+
+
 const findOneById = async (lessonId) => {
   try {
     const result = await GET_DB().collection(LESSON_COLLECTION_NAME).findOne({
       _id: new ObjectId(String(lessonId))
     })
     return result
+  } catch (error) { throw new Error(error) }
+}
+
+const getDetails = async (id) => {
+  try {
+    const result = await GET_DB().collection(LESSON_COLLECTION_NAME).aggregate([
+      { $match: {
+        _id: new ObjectId(String(id)),
+        _destroy: false
+      } },
+      { $lookup: {
+        from: quizModel.QUIZ_COLLECTION_NAME,
+        localField: '_id',
+        foreignField: 'lesson_Id',
+        as: 'Quizs'
+      } }
+    ]).toArray()
+
+    return result[0] || {}
   } catch (error) { throw new Error(error) }
 }
 
@@ -70,10 +99,7 @@ const update = async (lessonId, updateData) => {
       }
     })
 
-    //Dữ liệu từ FE liên quan ObId xử lí
-    if (updateData.lesson_id) updateData.lesson_id = new ObjectId(String(updateData.lesson_id))
-
-    const result = await GET_DB().collection(LESSON_COLLECTION_SCHEMA).findOneAndUpdate(
+    const result = await GET_DB().collection(LESSON_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(String(lessonId)) },
       { $set: updateData },
       { returnDocument: 'after' } //Trả về kết quả mới sau khi cập nhật
@@ -104,7 +130,9 @@ export const lessonModel = {
   LESSON_COLLECTION_NAME,
   LESSON_COLLECTION_SCHEMA,
   createNew,
+  getAllLessons,
   findOneById,
+  getDetails,
   pushQuizIds,
   update,
   deleteOneById,

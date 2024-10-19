@@ -146,7 +146,7 @@ const update = async (courseId, updateData) => {
     })
 
     //Dữ liệu từ FE liên quan ObId xử lí
-    if (updateData.lesson_id) updateData.lesson_id = new ObjectId(String(updateData.lesson_id))
+    // if (updateData.lesson_id) updateData.lesson_id = new ObjectId(String(updateData.lesson_id))
 
     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(String(courseId)) },

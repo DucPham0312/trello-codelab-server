@@ -14,7 +14,7 @@ const saveUsersToMongoDB = async (req, res) => {
     const usersCollection = db.collection('Users')
     await usersCollection.insertMany(dataUsers)
 
-    res.status(200).json({ message: 'Data synced from Firestore to MongoDB successfully' })
+    res.status(200).json({ message: 'Save data from Firestore to MongoDB successfully!' })
   } catch (error) {
     res.status(500).json({ error: error.message })
   } finally {

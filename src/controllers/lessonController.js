@@ -8,6 +8,26 @@ const createNew = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const getAllLessons = async (req, res, next) => {
+  try {
+    const lessons = await lessonService.getAllLessons()
+    //Có kết quả thì trả về Client
+    res.status(StatusCodes.OK).json(lessons)
+  } catch (error) { next(error) }
+}
+
+const getDetails = async (req, res, next) => {
+  try {
+    // console.log('req.params: ', req.params)
+    const lessonId = req.params.id
+
+    const lesson = await lessonService.getDetails(lessonId)
+
+    //Có kết quả thì trả về Client
+    res.status(StatusCodes.OK).json(lesson)
+  } catch (error) { next(error) }
+}
+
 const update = async (req, res, next) => {
   try {
     const lessonId = req.params.id
@@ -30,6 +50,8 @@ const deleteItem = async (req, res, next) => {
 
 export const lessonController = {
   createNew,
+  getAllLessons,
+  getDetails,
   update,
   deleteItem
 }
