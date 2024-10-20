@@ -71,7 +71,6 @@ const update = async (courseId, reqBody) => {
 
 const deleteItem = async (courseId) => {
   try {
-    //xóa course
     await courseModel.deleteOneById(courseId)
 
     await lessonModel.deleteManyByCourseId(courseId)

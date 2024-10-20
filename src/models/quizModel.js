@@ -19,6 +19,9 @@ const QUIZ_COLLECTION_SCHEMA = Joi.object({
   _destroy: Joi.boolean().default(false)
 })
 
+const INVALID_UPDATE_FIELDS = ['_id', 'course_Id', 'lesson_id', 'createdAt']
+
+
 const validateBeforeCreate = async (data) => {
   return await QUIZ_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
@@ -46,6 +49,27 @@ const findOneById = async (id) => {
   } catch (error) { throw new Error(error) }
 }
 
+const getAllQuizs = async () => {
+  try {
+    const quizs = await GET_DB().collection(QUIZ_COLLECTION_NAME).find({}).toArray()
+
+    return quizs
+  } catch (error) { throw new Error(error) }
+}
+
+const getDetails = async (id) => {
+  try {
+    const result = await GET_DB().collection(QUIZ_COLLECTION_NAME).aggregate([
+      { $match: {
+        _id: new ObjectId(String(id)),
+        _destroy: false
+      } }
+    ]).toArray()
+
+    return result[0] || {}
+  } catch (error) { throw new Error(error) }
+}
+
 const deleteManyByLessonId = async (lessonid) => {
   try {
     const result = await GET_DB().collection(QUIZ_COLLECTION_NAME).deleteMany({
@@ -64,11 +88,42 @@ const deleteManyByCourseId = async (lessonid) => {
   } catch (error) { throw new Error(error) }
 }
 
+const update = async (quizId, updateData) => {
+  try {
+    //Lọc field không cho phép cập nhật
+    Object.keys(updateData).forEach( fieldName => {
+      if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+        delete updateData[fieldName]
+      }
+    })
+
+    const result = await GET_DB().collection(QUIZ_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(quizId)) },
+      { $set: updateData },
+      { returnDocument: 'after' } //Trả về kết quả mới sau khi cập nhật
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+const deleteOneById = async (quizid) => {
+  try {
+    const result = await GET_DB().collection(QUIZ_COLLECTION_NAME).deleteOne({
+      _id: new ObjectId(String(quizid))
+    })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const quizModel = {
   QUIZ_COLLECTION_NAME,
   QUIZ_COLLECTION_SCHEMA,
   createNew,
+  getAllQuizs,
   findOneById,
   deleteManyByLessonId,
-  deleteManyByCourseId
+  deleteManyByCourseId,
+  getDetails,
+  update,
+  deleteOneById
 }
