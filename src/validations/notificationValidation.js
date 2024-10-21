@@ -7,12 +7,7 @@ import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 
 const createNew = async (req, res, next) => {
   const corectCondition = Joi.object({
-    course_Id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-    lesson_id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-    question: Joi.string().required().trim().strict(),
-    options: Joi.array().items(Joi.string()).min(2).unique().required(),
-    // answer: Joi.string().valid(Joi.in('$options')).required()
-    answer: Joi.string().required().trim().strict()
+    messages: Joi.string().required().trim().strict()
   })
 
   try {
@@ -25,10 +20,7 @@ const createNew = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   const corectCondition = Joi.object({
-    question: Joi.string().trim().strict(),
-    options: Joi.array().items(Joi.string()).min(2).unique(),
-    // answer: Joi.string().valid(Joi.in('$options'))
-    answer: Joi.string().trim().strict()
+    messages: Joi.string().trim().strict()
   })
 
   try {
@@ -55,7 +47,7 @@ const deleteItem = async (req, res, next) => {
   }
 }
 
-export const quizValidation = {
+export const notificationValidation = {
   createNew,
   update,
   deleteItem

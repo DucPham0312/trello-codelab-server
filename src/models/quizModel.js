@@ -8,10 +8,10 @@ const QUIZ_COLLECTION_NAME = 'Quizs'
 const QUIZ_COLLECTION_SCHEMA = Joi.object({
   course_Id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
   lesson_id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-  question: Joi.string().required(),
+  question: Joi.string().required().trim().strict(),
   options: Joi.array().items(Joi.string()).min(2).unique().required(),
   // answer: Joi.string().valid(Joi.ref('options')).required(),
-  answer: Joi.string().required(),
+  answer: Joi.string().required().trim().strict(),
 
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
