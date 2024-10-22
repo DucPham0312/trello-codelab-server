@@ -8,6 +8,7 @@ import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 
 const createNew = async (req, res, next) => {
   const corectCondition = Joi.object({
+    instructor_Id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
     course_name: Joi.string().required().min(3).max(50).trim().strict().messages({
       'any.required': 'Title is required',
       'string.empty': 'Title is not allowed to be empty',

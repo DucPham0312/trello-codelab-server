@@ -5,10 +5,13 @@ import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { COURSE_LEVEL } from '~/utils/variable'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
+import { userModel } from '~/models/userModel'
+
 
 //Define Collection (Name & schema)
 const COURSE_COLLECTION_NAME = 'Courses'
 const COURSE_COLLECTION_SCHEMA = Joi.object({
+  instructor_Id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
   course_name: Joi.string().required().min(3).max(50).trim().strict(),
   slug: Joi.string().required().min(3).trim().strict(),
   description: Joi.string().optional().min(3).max(256).trim().strict(),
@@ -34,12 +37,9 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   enrollment_status: Joi.string().valid('Open', 'Closed').required(),
   memberIds: Joi.array().items(
     Joi.object().keys({
-      memberId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+      user_Id: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
       completed: Joi.number().integer().min(0).default(0)
     })
-  ).default([]),
-  instructorIds: Joi.array().items(
-    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
   lessonIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
@@ -54,7 +54,7 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
 })
 
 //Chỉ định ra những field không cho phép trong hàm update()
-const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
+const INVALID_UPDATE_FIELDS = ['_id', 'instructor_Id', 'createdAt']
 
 const validateBeforeCreate = async (data) => {
   return await COURSE_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
@@ -105,6 +105,12 @@ const getDetails = async (id) => {
         localField: '_id',
         foreignField: 'course_Id',
         as: 'Quizs'
+      } },
+      { $lookup: {
+        from: userModel.USER_COLLECTION_NAME,
+        localField: '_id',
+        foreignField: 'course_id',
+        as: 'Users'
       } }
     ]).toArray()
 
@@ -177,6 +183,25 @@ const pullQuizIds = async (quiz) => {
   } catch (error) { throw error }
 }
 
+const pullMemberIds = async (userId) => {
+  try {
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(userId.course_Id)) },
+      { $pull: { memberIds: new ObjectId(String(userId._id)) } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw error }
+}
+
+const deleteManyByInstructorId = async (instructorId) => {
+  try {
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).deleteMany({
+      instructor_Id: new ObjectId(String(instructorId))
+    })
+    return result
+  } catch (error) { throw new Error(error) }
+}
 export const courseModel = {
   COURSE_COLLECTION_NAME,
   COURSE_COLLECTION_SCHEMA,
@@ -188,5 +213,7 @@ export const courseModel = {
   update,
   deleteOneById,
   pullLessonIds,
-  pullQuizIds
+  pullQuizIds,
+  pullMemberIds,
+  deleteManyByInstructorId
 }

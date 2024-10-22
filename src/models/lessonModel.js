@@ -33,11 +33,11 @@ const validateBeforeCreate = async (data) => {
 const createNew = async (data) => {
   try {
     const validData = await validateBeforeCreate(data)
-    const newColumnToAdd = {
+    const newLessonToAdd = {
       ...validData,
       course_Id: new ObjectId(String(validData.course_Id))
     }
-    const createdLesson = await GET_DB().collection(LESSON_COLLECTION_NAME).insertOne(newColumnToAdd)
+    const createdLesson = await GET_DB().collection(LESSON_COLLECTION_NAME).insertOne(newLessonToAdd)
     return createdLesson
   } catch (error) { throw new Error(error) }
 }
@@ -49,7 +49,6 @@ const getAllLessons = async () => {
     return lessons
   } catch (error) { throw new Error(error) }
 }
-
 
 const findOneById = async (lessonId) => {
   try {
@@ -70,7 +69,7 @@ const getDetails = async (id) => {
       { $lookup: {
         from: quizModel.QUIZ_COLLECTION_NAME,
         localField: '_id',
-        foreignField: 'lesson_Id',
+        foreignField: 'lesson_id',
         as: 'Quizs'
       } }
     ]).toArray()

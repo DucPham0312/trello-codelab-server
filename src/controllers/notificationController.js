@@ -17,9 +17,7 @@ const getAllNotifications = async (req, res, next) => {
 
 const getDetails = async (req, res, next) => {
   try {
-    // console.log('req.params: ', req.params)
     const notificationId = req.params.id
-
     const notification = await notificationService.getDetails(notificationId)
 
     //Có kết quả thì trả về Client

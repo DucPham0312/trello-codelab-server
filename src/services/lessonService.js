@@ -66,7 +66,7 @@ const deleteItem = async (lesson_Id) => {
     //Delete lessonIds of Coures
     await courseModel.pullLessonIds(targetLesson)
 
-    return { deleteResult: 'Lesson and its Quiz deleted successfully!' }
+    return { deleteResult: 'Delete successfully!' }
   } catch (error) { throw error }
 }
 

@@ -51,6 +51,7 @@ const START_SERVER = () => {
     console.log('Conecting to Firebase...')
     await CONNECT_FB.connectFirebase()
     console.log('Conected to Fisebase!')
+
     //Khởi đôngj server Back-end sau khi Connect Database thành công
     START_SERVER()
   } catch (error) {
