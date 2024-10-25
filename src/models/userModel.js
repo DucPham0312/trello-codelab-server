@@ -5,6 +5,7 @@ import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { courseModel } from '~/models/courseModel'
 import { reminderModel } from '~/models/reminderModel'
 import { reviewModel } from '~/models/reviewModel'
+import admin from '~/config/firebase'
 
 //Define Collection (Name & schema)
 const USER_COLLECTION_NAME = 'Users'
@@ -36,24 +37,41 @@ const USER_COLLECTION_SCHEMA = Joi.object({
 //Chỉ định ra những field không cho phép trong hàm update()
 const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
 
-// const validateBeforeCreate = async (data) => {
-//   return await USER_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
-// }
-
-// const createNew = async (data) => {
-//   try {
-//     const validData = await validateBeforeCreate(data)
-//     const createdUser = await GET_DB().collection(USER_COLLECTION_NAME).insertOne(validData)
-//     return createdUser
-//   } catch (error) { throw new Error(error) }
-// }
 
 const getAllUsers = async () => {
   try {
-    const users = await GET_DB().collection(USER_COLLECTION_NAME).find({}).toArray()
+    const users = []
+    let nextPageToken
+    const maxResults = 100 // Đặt giá trị maxResults
 
-    return users
-  } catch (error) { throw new Error(error) }
+    do {
+      const response = await admin.auth().listUsers(maxResults, nextPageToken)
+      users.push(...response.users)
+      nextPageToken = response.pageToken
+
+      for (const user of response.users) {
+        const userData = {
+          userId: user.uid,
+          data: user,
+          favoriteListInfo: [],
+          reminderIds: [],
+          reviewIds: []
+        }
+
+        await GET_DB().collection(USER_COLLECTION_NAME).updateOne(
+          { userId: user.uid },
+          { $set: userData },
+          { upsert: true }
+        )
+      }
+
+    } while (nextPageToken)
+
+    const usersData = await GET_DB().collection(USER_COLLECTION_NAME).find({}).toArray()
+    return usersData
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const findOneById = async (id) => {
@@ -93,7 +111,6 @@ const getDetails = async (id) => {
         as: 'Reviews'
       } }
     ]).toArray()
-
     return result[0] || {}
   } catch (error) { throw new Error(error) }
 }
@@ -121,14 +138,6 @@ const update = async (userId, updateData) => {
   } catch (error) { throw new Error(error) }
 }
 
-const deleteOneById = async (userId) => {
-  try {
-    const result = await GET_DB().collection(USER_COLLECTION_NAME).deleteOne({
-      _id: new ObjectId(String(userId))
-    })
-    return result
-  } catch (error) { throw new Error(error) }
-}
 
 const pushReminderIds = async (reminderId) => {
   try {
@@ -174,6 +183,17 @@ const pullReviewIds = async (reviewId) => {
   } catch (error) { throw error }
 }
 
+const deleteManyByIds = async (userIds) => {
+  try {
+    const result = await GET_DB().collection(USER_COLLECTION_NAME).deleteMany({
+      _id: { $in: userIds.map(userId => new ObjectId(String(userId))) }
+    })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const userModel = {
   USER_COLLECTION_NAME,
   USER_COLLECTION_SCHEMA,
@@ -181,9 +201,9 @@ export const userModel = {
   findOneById,
   getDetails,
   update,
-  deleteOneById,
   pushReminderIds,
   pullReminderIds,
   pushReviewIds,
-  pullReviewIds
+  pullReviewIds,
+  deleteManyByIds
 }

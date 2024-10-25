@@ -12,7 +12,6 @@ import { reminderRoute } from '~/routes/v1/reminderRoute'
 import { reviewRoute } from '~/routes/v1/reviewRoute'
 
 
-
 const Router = express.Router()
 
 //Check API V1 status

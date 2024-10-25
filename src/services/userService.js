@@ -1,23 +1,7 @@
 import { userModel } from '~/models/userModel'
-import { courseModel } from '~/models/courseModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
-
-// const creatNew = async (reqBody) => {
-//   try {
-//     const newUser = {
-//       ...reqBody
-//     }
-//     const createdUser = await userModel.createNew(newUser)
-//     const getNewUser = await userModel.findOneById(createdUser.insertedId)
-
-//     if (getNewUser) {
-//       await courseModel.pushUserIds(getNewUser)
-//     }
-
-//     return getNewUser
-//   } catch (error) { throw error }
-// }
+import admin from '~/config/firebase'
 
 const getAllUsers = async () => {
   return await userModel.getAllUsers()
@@ -46,24 +30,44 @@ const update = async (user_Id, reqBody) => {
   } catch (error) { throw error }
 }
 
-const deleteItem = async (user_Id) => {
+
+const deleteManyUsers = async (dataDelete) => {
   try {
-    const targetUser = await userModel.findOneById(user_Id)
-    if (!targetUser) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found!')
+    // const foundUsers = await Promise.all(dataDelete.map(userId => userModel.findOneById(userId)))
+    // const notFoundUsers = dataDelete.filter((_, index) => !foundUsers[index])
+    const foundUsers = []
+    const notFoundUsers = []
+    for (const userId of dataDelete) {
+      const user = await userModel.findOneById(userId)
+      if (user) {
+        foundUsers.push(user)
+      } else {
+        notFoundUsers.push(userId)
+      }
     }
-    //Xoa user
-    await userModel.deleteOneById(user_Id)
-    await courseModel.pullMemberIds(targetUser)
+    if (notFoundUsers.length > 0) {
+      throw new ApiError(StatusCodes.NOT_FOUND, `Users not found: ${notFoundUsers.join(', ')}`)
+    }
+
+    const uids = foundUsers.map(user => user.userId)
+
+    await userModel.deleteManyByIds(dataDelete)
+    const deleteFirebaseUsersResult = await admin.auth().deleteUsers(uids)
+
+    if (deleteFirebaseUsersResult.failureCount > 0) {
+      //failureCount:số người dùng ko bị xóa
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `There are ${deleteFirebaseUsersResult.failureCount} users that cannot be deleted from Firebase.`)
+    }
 
     return { deleteResult: 'Delete successfully!' }
-  } catch (error) { throw error }
+  } catch (error) {
+    throw error
+  }
 }
-
 
 export const userService = {
   getAllUsers,
   getDetails,
   update,
-  deleteItem
+  deleteManyUsers
 }

@@ -32,10 +32,11 @@ const update = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
-const deleteItem = async (req, res, next) => {
+
+const deleteManyUsers= async(req, res, next) => {
   try {
-    const userId = req.params.id
-    const result = await userService.deleteItem(userId)
+    const userIds = req.body.userIds // Nhận mảng userIds từ body request
+    const result = await userService.deleteManyUsers(userIds)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.OK).json(result)
@@ -46,5 +47,5 @@ export const userController = {
   getAllUsers,
   getDetails,
   update,
-  deleteItem
+  deleteManyUsers
 }

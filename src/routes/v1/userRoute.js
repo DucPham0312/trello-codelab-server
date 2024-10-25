@@ -6,10 +6,10 @@ const Router = express.Router()
 
 Router.route('/')
   .get(userController.getAllUsers)
+  .delete(userValidation.deleteManyUsers, userController.deleteManyUsers)
 
 Router.route('/:id')
   .get(userController.getDetails)
   .put(userValidation.update, userController.update)
-  .delete(userValidation.deleteItem, userController.deleteItem)
 
 export const userRoute = Router
