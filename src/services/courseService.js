@@ -6,7 +6,6 @@ import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
-import { instructorModel } from '~/models/instructorModel'
 
 const creatNew = async (reqBody) => {
   try {
@@ -21,12 +20,6 @@ const creatNew = async (reqBody) => {
 
     //Lấy bản ghi course sau khi gọi (Tùy mục đích dự án xem có cần bước này ko)
     const getNewCourse = await courseModel.findOneById(createdCourse.insertedId)
-
-    if (getNewCourse) {
-      getNewCourse.Courses = []
-
-      await instructorModel.pushCourseIds(getNewCourse)
-    }
 
     //Bắn email, notification  về cho admin khi có một cái course mới đc tạo..vv
 
@@ -87,9 +80,6 @@ const deleteItem = async (courseId) => {
     await lessonModel.deleteManyByCourseId(courseId)
 
     await quizModel.deleteManyByCourseId(courseId)
-
-    await instructorModel.pullCourseIds(targetCourse)
-
 
     return { deleteResult: 'Successfully!' }
   } catch (error) { throw error }
