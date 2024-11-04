@@ -8,6 +8,7 @@ import { WEBSITE_DOMAIN } from '~/utils/constants'
 import { BrevoProvider } from '~/providers/BrevoProvider'
 import { env } from '~/config/environment'
 import { JwtProvider } from '~/providers/JwtProvider'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 
 
 const createNew =async (reqBody) => {
@@ -127,7 +128,7 @@ const refreshToken = async (clientRefreshToken) => {
   } catch (error) { throw error }
 }
 
-const update = async (userId, reqBody) => {
+const update = async (userId, reqBody, userAvatarFile) => {
   try {
     // Query User và kiểm tra
     const existUser = await userModel.findOneById(userId)
@@ -141,13 +142,23 @@ const update = async (userId, reqBody) => {
     if (reqBody.current_password && reqBody.new_password) {
       //Kiểm tra current có đúng không
       if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
-        throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your Email or Password is incorrect!!')
+        throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your current password is incorrect!!')
       }
       //Nếu current_pasword đúng, hash mật khẩu mưới và update vào DB
       updateUser = await userModel.update(existUser._id, {
         password: bcryptjs.hashSync(reqBody.new_password, 8)
       })
-    } else {
+    } else if (userAvatarFile) {
+      //Trường hợp upload file lên cloud storage (Cloundinary)
+      const uploadResult = await CloudinaryProvider.streamUpload(userAvatarFile.buffer, 'users')
+      // console.log('uploadResult: ', uploadResult)
+
+      //Lưu lại url (secure_url) vào database
+      updateUser = await userModel.update(existUser._id, {
+        avatar: uploadResult.secure_url
+      })
+    }
+    else {
       //Trường hợp update các thông tin chung(displayName)
       updateUser = await userModel.update(existUser._id, reqBody)
     }
