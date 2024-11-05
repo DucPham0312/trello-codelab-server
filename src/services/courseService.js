@@ -8,7 +8,7 @@ import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
 import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 
-const creatNew = async (reqBody) => {
+const creatNew = async (userId, reqBody) => {
   try {
     //Xử lý logic dữ liệu tùy đặc thù dự án
     const newCourse = {
@@ -17,7 +17,7 @@ const creatNew = async (reqBody) => {
     }
 
     //Gọi tới tầng Model để xử lí lưu bản ghi newCourse vào trong Database
-    const createdCourse = await courseModel.createNew(newCourse)
+    const createdCourse = await courseModel.createNew(userId, newCourse)
 
     //Lấy bản ghi course sau khi gọi (Tùy mục đích dự án xem có cần bước này ko)
     const getNewCourse = await courseModel.findOneById(createdCourse.insertedId)
@@ -41,9 +41,9 @@ const getAllCourses = async (userId, page, itemsPerPage) => {
   } catch (error) { throw error }
 }
 
-const getDetails = async (courseId) => {
+const getDetails = async (userId, courseId) => {
   try {
-    const course = await courseModel.getDetails(courseId)
+    const course = await courseModel.getDetails(userId, courseId)
     if (!course) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Course not found!')
     }

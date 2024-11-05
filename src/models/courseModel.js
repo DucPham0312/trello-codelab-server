@@ -63,10 +63,14 @@ const validateBeforeCreate = async (data) => {
   return await COURSE_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNew = async (data) => {
+const createNew = async (userId, data) => {
   try {
     const validData = await validateBeforeCreate(data)
-    const createdCourse = await GET_DB().collection(COURSE_COLLECTION_NAME).insertOne(validData)
+    const newCourseToAdd = {
+      ...validData,
+      ownerIds: [new ObjectId(String(userId))]
+    }
+    const createdCourse = await GET_DB().collection(COURSE_COLLECTION_NAME).insertOne(newCourseToAdd)
     return createdCourse
   } catch (error) { throw new Error(error) }
 }
@@ -124,14 +128,18 @@ const findOneById = async (id) => {
 }
 
 //Querry tổng hợp (aggregate) để lấy toàn bộ collumn và card  thuộc Board
-const getDetails = async (id) => {
+const getDetails = async (userId, courseId) => {
   try {
-    //tạm giống hệt hàm findOneById_ update aggregate sau
+    const queryConditions = [
+      { _id: new ObjectId(String(courseId)) },
+      { _destroy: false },
+      { $or: [
+        { ownerIds: { $all: [new ObjectId(String(userId))] } },
+        { memberIds: { $all: [new ObjectId(String(userId))] } }
+      ] }
+    ]
     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).aggregate([
-      { $match: {
-        _id: new ObjectId(String(id)),
-        _destroy: false
-      } },
+      { $match: { $and: queryConditions } },
       { $lookup: {
         from: lessonModel.LESSON_COLLECTION_NAME,
         localField: '_id',

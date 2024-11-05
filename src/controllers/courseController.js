@@ -6,9 +6,10 @@ const createNew = async (req, res, next) => {
     // console.log('req.body: ', req.body)
     // console.log('req.query: ', req.query)
     // console.log('req.params: ', req.params)
+    const userId = req.jwtDecoded._id
 
     //Điều hướng dữ liệu qua tầng Service
-    const createdCourse = await courseService.creatNew(req.body)
+    const createdCourse = await courseService.creatNew(userId, req.body)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.CREATED).json(createdCourse)
@@ -29,10 +30,10 @@ const getAllCourses = async (req, res, next) => {
 
 const getDetails = async (req, res, next) => {
   try {
-    // console.log('req.params: ', req.params)
+    const userId = req.jwtDecoded._id
     const courseId = req.params.id
 
-    const course = await courseService.getDetails(courseId)
+    const course = await courseService.getDetails(userId, courseId)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.OK).json(course)
