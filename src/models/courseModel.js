@@ -6,6 +6,7 @@ import { COURSE_LEVEL } from '~/utils/constants'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
 import { pagingSkipValue } from '~/utils/algorithms'
+import { userModel } from '~/models/userModel'
 
 
 //Define Collection (Name & schema)
@@ -151,7 +152,27 @@ const getDetails = async (userId, courseId) => {
         localField: '_id',
         foreignField: 'course_Id',
         as: 'Quizs'
-      } }
+      } },
+      {
+        $lookup: {
+          from: userModel.USER_COLLECTION_NAME,
+          localField: 'OwnerIds',
+          foreignField: '_id',
+          as: 'Owners',
+          // pipeline trong lookup để xử lý một hoặc nhiều luồng cần thiết
+          // $project để chỉ định vài field không muốn lấy về bằng cách gán nó giá trị 0
+          pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+        }
+      },
+      {
+        $lookup: {
+          from: userModel.USER_COLLECTION_NAME,
+          localField: 'memberIds',
+          foreignField: '_id',
+          as: 'Members',
+          pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+        }
+      }
     ]).toArray()
 
     return result[0] || {}

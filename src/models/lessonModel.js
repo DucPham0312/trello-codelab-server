@@ -1,7 +1,7 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
+import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE, EMAIL_RULE, EMAIL_RULE_MESSAGE } from '~/utils/validators'
 import { quizModel } from '~/models/quizModel'
 
 
@@ -18,6 +18,22 @@ const LESSON_COLLECTION_SCHEMA = Joi.object({
   quizIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
+
+  cover: Joi.string().default(null),
+  memberIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
+
+  // Dữ liệu comments của Lesson sẽ nhúng - embedded vào bản ghi Lesson luôn:
+  comments: Joi.array().items({
+    userId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+    userEmail: Joi.string().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
+    userAvatar: Joi.string(),
+    userDisplayName: Joi.string(),
+    content: Joi.string(),
+    // Lưu ý vì dùng hàm $push để thêm comment nên không set default Date.now được.
+    commentedAt: Joi.date().timestamp()
+  }).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),

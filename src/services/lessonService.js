@@ -3,6 +3,8 @@ import { courseModel } from '~/models/courseModel'
 import { quizModel } from '~/models/quizModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+
 
 const creatNew = async (reqBody) => {
   try {
@@ -39,13 +41,25 @@ const getDetails = async (lessonId) => {
   } catch (error) { throw error }
 }
 
-const update = async (lesson_Id, reqBody) => {
+const update = async (lesson_Id, reqBody, lessonCoverFile) => {
   try {
     const updateData = {
       ...reqBody,
       updatedAt: Date.now()
     }
-    const updatedLesson = await lessonModel.update(lesson_Id, updateData)
+
+    let updatedLesson = {}
+
+    if (lessonCoverFile) {
+      const uploadResult = await CloudinaryProvider.streamUpload(lessonCoverFile.buffer, 'lesson-covers')
+
+      updatedLesson = await lessonModel.update(lesson_Id, {
+        cover: uploadResult.secure_url
+      })
+    } else {
+      //Các TH update thông tin chung
+      updatedLesson = await lessonModel.update(lesson_Id, updateData)
+    }
 
     return updatedLesson
   } catch (error) { throw error }
