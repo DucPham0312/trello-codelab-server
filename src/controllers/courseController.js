@@ -17,9 +17,13 @@ const createNew = async (req, res, next) => {
 
 const getAllCourses = async (req, res, next) => {
   try {
-    const courses = await courseService.getAllCourses()
+    const userId = req.jwtDecoded._id
+    //page và itemsPerPage được truyền vào trong query url từ phía FE nên BE lấy thông qua req.query
+    const { page, itemsPerPage } = req.query
+    const results = await courseService.getAllCourses(userId, page, itemsPerPage)
+
     //Có kết quả thì trả về Client
-    res.status(StatusCodes.OK).json(courses)
+    res.status(StatusCodes.OK).json(results)
   } catch (error) { next(error) }
 }
 

@@ -2,16 +2,15 @@ import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
-import { COURSE_LEVEL } from '~/utils/variable'
+import { COURSE_LEVEL } from '~/utils/constants'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
-import { userModel } from '~/models/userModel'
+import { pagingSkipValue } from '~/utils/algorithms'
 
 
 //Define Collection (Name & schema)
 const COURSE_COLLECTION_NAME = 'Courses'
 const COURSE_COLLECTION_SCHEMA = Joi.object({
-  instructor_Id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
   course_name: Joi.string().required().min(3).max(50).trim().strict(),
   slug: Joi.string().required().min(3).trim().strict(),
   description: Joi.string().optional().min(3).max(256).trim().strict(),
@@ -35,16 +34,20 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   course_image: Joi.string().required().trim().strict(),
   completion_certificate: Joi.boolean().required(),
   enrollment_status: Joi.string().valid('Open', 'Closed').required(),
-  memberIds: Joi.array().items(
-    Joi.object().keys({
-      user_Id: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-      completed: Joi.number().integer().min(0).default(0)
-    })
-  ).default([]),
+  // memberIds: Joi.array().items(
+  //   Joi.object().keys({
+  //     user_Id: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+  //     completed: Joi.number().integer().min(0).default(0)
+  //   })
+  // ).default([]),
   lessonIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
-  revieweIds: Joi.array().items(
+  //Những admin của board
+  ownerIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
+  memberIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
 
@@ -54,7 +57,7 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
 })
 
 //Chỉ định ra những field không cho phép trong hàm update()
-const INVALID_UPDATE_FIELDS = ['_id', 'instructor_Id', 'createdAt']
+const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
 
 const validateBeforeCreate = async (data) => {
   return await COURSE_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
@@ -68,11 +71,46 @@ const createNew = async (data) => {
   } catch (error) { throw new Error(error) }
 }
 
-const getAllCourses = async () => {
+const getAllCourses = async (userId, page, itemsPerPage) => {
   try {
-    const courses = await GET_DB().collection(COURSE_COLLECTION_NAME).find({}).toArray()
+    const queryConditions = [
+      //Course chưa bị xóa
+      { _destroy: false },
+      //userId đang thực hiện request này phải thuộc một trong 2 cái mảng ownerIds hoặc memberIds, sử dụng toán tử $all mongodb
+      { $or: [
+        { ownerIds: { $all: [new ObjectId(String(userId))] } },
+        { memberIds: { $all: [new ObjectId(String(userId))] } }
+      ] }
+    ]
 
-    return courses
+    const query = await GET_DB().collection(COURSE_COLLECTION_NAME).aggregate(
+      [
+        { $match: { $and: queryConditions } }, //[] Mảng để query có gắn điều kiện đã khai báo thành biến ở trên
+        //sort title theo A-Z(mặc định sẽ bị chữ B đứng trước a theo chuẩn ASCII)
+        { $sort: { title: 1 } },
+        //$facet để xử lí nhiều luôngf trong một query
+        { $facet: {
+          //Luồng 01: Query Courses
+          'queryCourses': [
+            { $skip: pagingSkipValue(page, itemsPerPage) }, //Bỏ qua số lượng bản ghi của những trang trước đó
+            { $limit: itemsPerPage } //Giới hạn tối đa số lượng bản ghi trả về/ 1 page
+          ],
+          //luồng 02: Query đếm tổng tất cả số lượng bản ghi course trong db và trả về biến countedAllCourses
+          'queryTotalCourses': [{ $count: 'countedAllCourses' }]
+        } }
+      ],
+      //Thuộc tính collation locale 'en' (enghish) để fix chữ B hoa và a thường
+      //https://www.mongodb.com/docs/v6.0/reference/collation/#std-label-collation-document-fields
+      { collation: { locale: 'en' } }
+    ).toArray()
+    // console.log('query: ', query)
+
+    const res = query[0]
+
+    return {
+      Courses: res.queryCourses || [],
+      totalCourses: res.queryTotalCourses[0]?.countedAllCourses || 0
+    }
   } catch (error) { throw new Error(error) }
 }
 
@@ -105,12 +143,6 @@ const getDetails = async (id) => {
         localField: '_id',
         foreignField: 'course_Id',
         as: 'Quizs'
-      } },
-      { $lookup: {
-        from: userModel.USER_COLLECTION_NAME,
-        localField: '_id',
-        foreignField: 'course_id',
-        as: 'Users'
       } }
     ]).toArray()
 
@@ -183,25 +215,18 @@ const pullQuizIds = async (quiz) => {
   } catch (error) { throw error }
 }
 
-const pullMemberIds = async (userId) => {
-  try {
-    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
-      { _id: new ObjectId(String(userId.course_Id)) },
-      { $pull: { memberIds: new ObjectId(String(userId._id)) } },
-      { returnDocument: 'after' }
-    )
-    return result
-  } catch (error) { throw error }
-}
+// const pullMemberIds = async (userId) => {
+//   try {
+//     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+//       { _id: new ObjectId(String(userId.course_Id)) },
+//       { $pull: { memberIds: new ObjectId(String(userId._id)) } },
+//       { returnDocument: 'after' }
+//     )
+//     return result
+//   } catch (error) { throw error }
+// }
 
-const deleteManyByInstructorId = async (instructorId) => {
-  try {
-    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).deleteMany({
-      instructor_Id: new ObjectId(String(instructorId))
-    })
-    return result
-  } catch (error) { throw new Error(error) }
-}
+
 export const courseModel = {
   COURSE_COLLECTION_NAME,
   COURSE_COLLECTION_SCHEMA,
@@ -213,7 +238,5 @@ export const courseModel = {
   update,
   deleteOneById,
   pullLessonIds,
-  pullQuizIds,
-  pullMemberIds,
-  deleteManyByInstructorId
+  pullQuizIds
 }

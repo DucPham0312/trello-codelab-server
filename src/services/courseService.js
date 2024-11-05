@@ -6,6 +6,7 @@ import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
+import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 
 const creatNew = async (reqBody) => {
   try {
@@ -28,8 +29,16 @@ const creatNew = async (reqBody) => {
   } catch (error) { throw error }
 }
 
-const getAllCourses = async () => {
-  return await courseModel.getAllCourses()
+const getAllCourses = async (userId, page, itemsPerPage) => {
+  try {
+    //Nếu không tồn tại page hoặc itemPerPage từ FE thì cần phải luôn gắn giá trị mặc định
+    if (!page) page = DEFAULT_PAGE
+    if (!itemsPerPage) itemsPerPage = DEFAULT_ITEMS_PER_PAGE
+
+    const results = await courseModel.getAllCourses(userId, parseInt(page, 10), parseInt(itemsPerPage, 10))
+
+    return results
+  } catch (error) { throw error }
 }
 
 const getDetails = async (courseId) => {
