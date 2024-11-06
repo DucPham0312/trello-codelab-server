@@ -41,7 +41,7 @@ const getDetails = async (lessonId) => {
   } catch (error) { throw error }
 }
 
-const update = async (lesson_Id, reqBody, lessonCoverFile) => {
+const update = async (lesson_Id, reqBody, lessonCoverFile, userInfo) => {
   try {
     const updateData = {
       ...reqBody,
@@ -56,6 +56,15 @@ const update = async (lesson_Id, reqBody, lessonCoverFile) => {
       updatedLesson = await lessonModel.update(lesson_Id, {
         cover: uploadResult.secure_url
       })
+    } else if (updateData.commentToAdd) {
+      // Tạo dữ liệu comment để thêm vào database, cần bổ sung thêm những filed cần thiết
+      const commentData = {
+        ...updateData.commentToAdd,
+        commentedAt: Date.now(),
+        userId: userInfo._id,
+        userEmail: userInfo.email
+      }
+      updatedLesson = await lessonModel.unshiftNewComment(lesson_Id, commentData)
     } else {
       //Các TH update thông tin chung
       updatedLesson = await lessonModel.update(lesson_Id, updateData)

@@ -32,7 +32,8 @@ const update = async (req, res, next) => {
   try {
     const lessonId = req.params.id
     const lessonCoverFile = req.file
-    const updatedLesson = await lessonService.update(lessonId, req.body, lessonCoverFile)
+    const userInfo = req.jwtDecoded
+    const updatedLesson = await lessonService.update(lessonId, req.body, lessonCoverFile, userInfo)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.OK).json(updatedLesson)

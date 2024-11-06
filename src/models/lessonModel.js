@@ -152,6 +152,27 @@ const pullQuizIds = async (quiz) => {
   } catch (error) { throw error }
 }
 
+/**
+ * Đẩy một phần tử comment vào đầu mảng comments!
+ * - Trong JS, ngược lại với push (thêm phần tử vào cuối mảng), unshift (thêm phần tử vào đầu mảng)
+ * - Nhưng trong MongoDB hiện tại chỉ có $push --> cách để thêm phần tử vào đầu mảng:
+ * * Vẫn dùng $push, nhưng bọc data vào Array ở trong $each và chỉ định $position: 0
+ */
+const unshiftNewComment = async (lessonId, commentData) => {
+  try {
+    const result = await GET_DB().collection(LESSON_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(lessonId)) },
+      { $push: { comments: { $each: [commentData], $position: 0 } } },
+      { returnDocument: 'after' }
+    )
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+
 export const lessonModel = {
   LESSON_COLLECTION_NAME,
   LESSON_COLLECTION_SCHEMA,
@@ -163,5 +184,6 @@ export const lessonModel = {
   update,
   deleteOneById,
   deleteManyByCourseId,
-  pullQuizIds
+  pullQuizIds,
+  unshiftNewComment
 }
