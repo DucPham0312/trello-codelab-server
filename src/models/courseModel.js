@@ -244,6 +244,17 @@ const pullQuizIds = async (quiz) => {
   } catch (error) { throw error }
 }
 
+const pushMemberIds = async (courseId, userId) => {
+  try {
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(courseId)) },
+      { $push: { memberIds: new ObjectId(String(userId)) } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw error }
+}
+
 // const pullMemberIds = async (userId) => {
 //   try {
 //     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
@@ -267,5 +278,6 @@ export const courseModel = {
   update,
   deleteOneById,
   pullLessonIds,
-  pullQuizIds
+  pullQuizIds,
+  pushMemberIds
 }

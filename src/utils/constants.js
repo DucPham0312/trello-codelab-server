@@ -3,7 +3,8 @@ import { env } from '~/config/environment'
 
 //Những tài nguyên được phép truy cập đến tài nguyên của Server
 export const WHITELIST_DOMAINS = [
-  'http://localhost:5173'
+  'http://localhost:8020',
+  'https://piehost.com/socketio-tester'
 ]
 
 export const WEBSITE_DOMAIN = (env.BUILD_MODE === 'production') ? env.WEBSITE_DOMAIN_PRODUCTION : env.WEBSITE_DOMAIN_DEVELOPMENT

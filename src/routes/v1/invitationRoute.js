@@ -12,7 +12,12 @@ Router.route('/course')
     invitationController.createNewCourseInvitation
   )
 
+//Get intitation by User
 Router.route('/')
   .get(authMiddleware.isAuthorized, invitationController.getInvitations)
+
+//Update Course Invitation
+Router.route('/course/:invitationId')
+  .put(authMiddleware.isAuthorized, invitationController.updateCourseInvitation)
 
 export const invitationRoute = Router

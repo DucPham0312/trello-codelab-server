@@ -6,9 +6,13 @@ import exitHook from 'async-exit-hook'
 import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { env } from '~/config/environment'
 import { APIs_V1 } from '~/routes/v1/index'
-// import { APIs_fbase } from '~/routes/fbase/index'
 import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 import cookieParser from 'cookie-parser'
+//Xử lí socket real-time với socket.io
+//socket.io/get-started/chat/#integrating-socketio
+import socketIo from 'socket.io'
+import http from 'http'
+import { inviteUserToCourseSocket } from '~/sockets/inviteUserToCourseSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -38,11 +42,23 @@ const START_SERVER = () => {
   // //Middlewares xử lý lỗi tập chung
   app.use(errorHandlingMiddleware)
 
-  app.listen(env.APP_PORT, env.APP_HOST, () => {
+  /**
+   * Tạo server mới bọc app của express để làm real-time với socket.io
+   */
+  const server = http.createServer(app)
+  //Khởi tạo biến io với server và cors
+  const io = socketIo(server, { cors: corsOptions })
+  io.on('connection', (socket) => {
+    console.log('A user connected!')
+    inviteUserToCourseSocket(socket)
+  })
+
+  //Dùng server.listen thay vì app.listen vì lúc này server đã bao gồm app và config socket.io
+  server.listen(env.APP_PORT, env.APP_HOST, () => {
     console.log(`Hello ${env.AUTHOR}, Back-end Server is running successfully at http://${env.APP_HOST}:${env.APP_PORT}/`)
   })
 
-  //Thực hiện các tác vụ trươcs khi dừng server
+  //Thực hiện các tác vụ trước khi dừng server
   exitHook(() => {
     console.log('Server is shutting down...')
     CLOSE_DB()

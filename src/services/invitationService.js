@@ -66,7 +66,46 @@ const getInvitations = async (userId) => {
   } catch (error) { throw error }
 }
 
+const updateCourseInvitation = async (userId, invitationId, status) => {
+  try {
+    // Tìm bản ghi invitation trong model
+    const getInvitation = await invitationModel.findOneById(invitationId)
+    if (!getInvitation) throw new ApiError(StatusCodes.NOT_FOUND, 'Invitation not found!')
+
+    // Khi có Invitation --> lấy full thông tin của course
+    const courseId = getInvitation.courseInvitation.courseId
+    const getCourse = await courseModel.findOneById(courseId)
+    if (!getCourse) throw new ApiError(StatusCodes.NOT_FOUND, 'Course not found!')
+
+    // Kiểm tra nếu status là ACCEPTED join course mà user (invitee) đã là owner hoặc member của course rồi thì trả về thông báo lỗi.
+    // Note: 2 mảng memberIds và ownerIds của course đang là kiểu dữ liệu ObjectId nên cho về String để check
+    const courseOwnerAndMemberIds = [...getCourse.ownerIds, ...getCourse.memberIds].toString()
+    if (status === COURSE_INVITATION_STATUS.ACCEPTED && courseOwnerAndMemberIds.includes(userId)) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You are already a member of this course.')
+    }
+
+    //Tạo data đẻ update bản ghi Invitation
+    const updateData = {
+      courseInvitation: {
+        ...getInvitation.courseInvitation,
+        status: status
+      }
+    }
+
+    //Bước 1: Cập nhật status trong bản ghi Invitation (reject)
+    const updatedInvitation = await invitationModel.update(invitationId, updateData)
+
+    //Bước 2: Nếu trường hợp Accept lời mời thành công, thêm thông tin của userId vào bản ghi memberIds trong course.
+    if (updatedInvitation.courseInvitation.status === COURSE_INVITATION_STATUS.ACCEPTED) {
+      await courseModel.pushMemberIds(courseId, userId)
+    }
+
+    return updatedInvitation
+  } catch (error) { throw error }
+}
+
 export const invitationService = {
   createNewCourseInvitation,
-  getInvitations
+  getInvitations,
+  updateCourseInvitation
 }
