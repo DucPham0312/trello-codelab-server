@@ -20,8 +20,9 @@ const getAllCourses = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
     //page và itemsPerPage được truyền vào trong query url từ phía FE nên BE lấy thông qua req.query
-    const { page, itemsPerPage } = req.query
-    const results = await courseService.getAllCourses(userId, page, itemsPerPage)
+    const { page, itemsPerPage, value } = req.query
+    const queryFilters = value
+    const results = await courseService.getAllCourses(userId, page, itemsPerPage, queryFilters)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.OK).json(results)
@@ -43,7 +44,9 @@ const getDetails = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     const courseId = req.params.id
-    const updatedCourse = await courseService.update(courseId, req.body)
+    const courseCoverFile = req.file
+    const userInfo = req.jwtDecoded
+    const updatedCourse = await courseService.update(courseId, req.body, courseCoverFile, userInfo)
 
     //Có kết quả thì trả về Client
     res.status(StatusCodes.OK).json(updatedCourse)

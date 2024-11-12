@@ -2,6 +2,8 @@ import express from 'express'
 import { courseValidation } from '~/validations/courseValidation'
 import { courseController } from '~/controllers/courseController'
 import { authMiddleware } from '~/middlewares/authMiddleware'
+import { multerUploadMiddleware } from '~/middlewares/multerUploadMiddleware'
+
 
 const Router = express.Router()
 
@@ -11,7 +13,10 @@ Router.route('/')
 
 Router.route('/:id')
   .get(authMiddleware.isAuthorized, courseController.getDetails)
-  .put(authMiddleware.isAuthorized, courseValidation.update, courseController.update)
+  .put(authMiddleware.isAuthorized,
+    multerUploadMiddleware.upload.single('courseCover'),
+    courseValidation.update,
+    courseController.update)
   .delete(authMiddleware.isAuthorized, courseValidation.deleteItem, courseController.deleteItem)
 
 export const courseRoute = Router

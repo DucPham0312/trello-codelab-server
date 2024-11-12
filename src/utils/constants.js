@@ -27,3 +27,8 @@ export const COURSE_INVITATION_STATUS = {
   ACCEPTED: 'ACCEPTED',
   REJECTED: 'REJECTED'
 }
+
+export const MEMBER_ACTIONS = {
+  ADD: 'ADD',
+  REMOVE: 'REMOVE'
+}

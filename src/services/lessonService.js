@@ -41,7 +41,7 @@ const getDetails = async (lessonId) => {
   } catch (error) { throw error }
 }
 
-const update = async (lesson_Id, reqBody, lessonCoverFile, userInfo) => {
+const update = async (lessonId, reqBody, lessonCoverFile, userInfo) => {
   try {
     const updateData = {
       ...reqBody,
@@ -53,7 +53,7 @@ const update = async (lesson_Id, reqBody, lessonCoverFile, userInfo) => {
     if (lessonCoverFile) {
       const uploadResult = await CloudinaryProvider.streamUpload(lessonCoverFile.buffer, 'lesson-covers')
 
-      updatedLesson = await lessonModel.update(lesson_Id, {
+      updatedLesson = await lessonModel.update(lessonId, {
         cover: uploadResult.secure_url
       })
     } else if (updateData.commentToAdd) {
@@ -64,27 +64,30 @@ const update = async (lesson_Id, reqBody, lessonCoverFile, userInfo) => {
         userId: userInfo._id,
         userEmail: userInfo.email
       }
-      updatedLesson = await lessonModel.unshiftNewComment(lesson_Id, commentData)
+      updatedLesson = await lessonModel.unshiftNewComment(lessonId, commentData)
+    } else if (updateData.incomingMemberInfo) {
+      //Trường hợp add hoặc remove member ra khỏi card
+      updatedLesson = await lessonModel.updateMembers(lessonId, updateData.incomingMemberInfo)
     } else {
       //Các TH update thông tin chung
-      updatedLesson = await lessonModel.update(lesson_Id, updateData)
+      updatedLesson = await lessonModel.update(lessonId, updateData)
     }
 
     return updatedLesson
   } catch (error) { throw error }
 }
 
-const deleteItem = async (lesson_Id) => {
+const deleteItem = async (lessonId) => {
   try {
-    const targetLesson = await lessonModel.findOneById(lesson_Id)
+    const targetLesson = await lessonModel.findOneById(lessonId)
     if (!targetLesson) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Lesson not found!')
     }
     //Xoa lesson
-    await lessonModel.deleteOneById(lesson_Id)
+    await lessonModel.deleteOneById(lessonId)
 
     //Xoa quizs of lesson
-    await quizModel.deleteManyByLessonId(lesson_Id)
+    await quizModel.deleteManyByLessonId(lessonId)
 
     //Delete lessonIds of Coures
     await courseModel.pullLessonIds(targetLesson)

@@ -7,6 +7,8 @@ import { cloneDeep } from 'lodash'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
 import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+
 
 const creatNew = async (userId, reqBody) => {
   try {
@@ -29,13 +31,18 @@ const creatNew = async (userId, reqBody) => {
   } catch (error) { throw error }
 }
 
-const getAllCourses = async (userId, page, itemsPerPage) => {
+const getAllCourses = async (userId, page, itemsPerPage, queryFilters) => {
   try {
     //Nếu không tồn tại page hoặc itemPerPage từ FE thì cần phải luôn gắn giá trị mặc định
     if (!page) page = DEFAULT_PAGE
     if (!itemsPerPage) itemsPerPage = DEFAULT_ITEMS_PER_PAGE
 
-    const results = await courseModel.getAllCourses(userId, parseInt(page, 10), parseInt(itemsPerPage, 10))
+    const results = await courseModel.getAllCourses(
+      userId,
+      parseInt(page, 10),
+      parseInt(itemsPerPage, 10),
+      queryFilters
+    )
 
     return results
   } catch (error) { throw error }
@@ -65,13 +72,37 @@ const getDetails = async (userId, courseId) => {
   } catch (error) { throw error }
 }
 
-const update = async (courseId, reqBody) => {
+const update = async (courseId, reqBody, courseCoverFile, userInfo) => {
   try {
     const updateData = {
       ...reqBody,
       updatedAt: Date.now()
     }
-    const updatedCourse = await courseModel.update(courseId, updateData)
+
+    let updatedCourse = {}
+
+    if (courseCoverFile) {
+      const uploadResult = await CloudinaryProvider.streamUpload(courseCoverFile.buffer, 'course-covers')
+
+      updatedCourse = await courseModel.update(courseId, {
+        cover: uploadResult.secure_url
+      })
+    } else if (updateData.commentToAdd) {
+      // Tạo dữ liệu comment để thêm vào database, cần bổ sung thêm những filed cần thiết
+      const commentData = {
+        ...updateData.commentToAdd,
+        commentedAt: Date.now(),
+        userId: userInfo._id,
+        userEmail: userInfo.email
+      }
+      updatedCourse = await courseModel.unshiftNewComment(courseId, commentData)
+    } else if (updateData.incomingMemberInfo) {
+      //Trường hợp add hoặc remove member ra khỏi card
+      updatedCourse = await courseModel.updateMembers(courseId, updateData.incomingMemberInfo)
+    } else {
+      //Các TH update thông tin chung
+      updatedCourse = await courseModel.update(courseId, updateData)
+    }
 
     return updatedCourse
   } catch (error) { throw error }

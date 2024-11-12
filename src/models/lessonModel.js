@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE, EMAIL_RULE, EMAIL_RULE_MESSAGE } from '~/utils/validators'
 import { quizModel } from '~/models/quizModel'
+import { MEMBER_ACTIONS } from '~/utils/constants'
 
 
 // Define Collection (name & schema)
@@ -31,7 +32,7 @@ const LESSON_COLLECTION_SCHEMA = Joi.object({
     userAvatar: Joi.string(),
     userDisplayName: Joi.string(),
     content: Joi.string(),
-    // Lưu ý vì dùng hàm $push để thêm comment nên không set default Date.now được.
+    // Dùng hàm $push để thêm comment nên không set default Date.now được.
     commentedAt: Joi.date().timestamp()
   }).default([]),
 
@@ -173,6 +174,33 @@ const unshiftNewComment = async (lessonId, commentData) => {
 }
 
 
+//Hàm xử lí cập nhật thêm hoặc xóa member khỏi lesson theo action
+const updateMembers = async (lessonId, incomingMemberInfo) => {
+  try {
+    // Tạo ra một biến updateCondition ban đầu là rỗng
+    let updateCondition = {}
+
+    if (incomingMemberInfo.action === MEMBER_ACTIONS.ADD) {
+      // console.log('Trường hợp Add: ', incomingMemberInfo)
+      updateCondition = { $push: { memberIds: new ObjectId(String(incomingMemberInfo.userId)) } }
+    }
+
+    if (incomingMemberInfo.action === MEMBER_ACTIONS.REMOVE) {
+      // console.log('Trường hợp Remove: ', incomingMemberInfo)
+      updateCondition = { $pull: { memberIds: new ObjectId(String(incomingMemberInfo.userId)) } }
+    }
+
+    const result = await GET_DB().collection(LESSON_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(lessonId)) },
+      updateCondition,
+      { returnDocument: 'after' }
+    )
+
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+
 export const lessonModel = {
   LESSON_COLLECTION_NAME,
   LESSON_COLLECTION_SCHEMA,
@@ -185,5 +213,6 @@ export const lessonModel = {
   deleteOneById,
   deleteManyByCourseId,
   pullQuizIds,
-  unshiftNewComment
+  unshiftNewComment,
+  updateMembers
 }

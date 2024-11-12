@@ -1,8 +1,8 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
-import { COURSE_LEVEL } from '~/utils/constants'
+import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE, EMAIL_RULE, EMAIL_RULE_MESSAGE } from '~/utils/validators'
+import { COURSE_LEVEL, MEMBER_ACTIONS } from '~/utils/constants'
 import { lessonModel } from '~/models/lessonModel'
 import { quizModel } from '~/models/quizModel'
 import { pagingSkipValue } from '~/utils/algorithms'
@@ -35,12 +35,7 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   course_image: Joi.string().required().trim().strict(),
   completion_certificate: Joi.boolean().required(),
   enrollment_status: Joi.string().valid('Open', 'Closed').required(),
-  // memberIds: Joi.array().items(
-  //   Joi.object().keys({
-  //     user_Id: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-  //     completed: Joi.number().integer().min(0).default(0)
-  //   })
-  // ).default([]),
+  cover: Joi.string().default(null),
   lessonIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
@@ -51,6 +46,17 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   memberIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
+
+  // Dữ liệu comments của Course sẽ nhúng - embedded vào bản ghi Course luôn:
+  comments: Joi.array().items({
+    userId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+    userEmail: Joi.string().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
+    userAvatar: Joi.string(),
+    userDisplayName: Joi.string(),
+    content: Joi.string(),
+    // Dùng hàm $push để thêm comment nên không set default Date.now được.
+    commentedAt: Joi.date().timestamp()
+  }).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
@@ -76,7 +82,7 @@ const createNew = async (userId, data) => {
   } catch (error) { throw new Error(error) }
 }
 
-const getAllCourses = async (userId, page, itemsPerPage) => {
+const getAllCourses = async (userId, page, itemsPerPage, queryFilters) => {
   try {
     const queryConditions = [
       //Course chưa bị xóa
@@ -87,6 +93,18 @@ const getAllCourses = async (userId, page, itemsPerPage) => {
         { memberIds: { $all: [new ObjectId(String(userId))] } }
       ] }
     ]
+
+    //Xử lí query filter cho từng trường hợp search course
+    if (queryFilters) {
+      Object.keys(queryFilters).forEach(key => {
+        //Có phân biệt chữ hoa, chữ thường
+        // queryConditions.push({ [key]: { $regex: queryFilters[key] } })
+
+        //Không phân biệt
+        queryConditions.push({ [key]: { $regex: new RegExp(queryFilters[key], 'i') } })
+      })
+    }
+    // console.log('queryConditions', queryConditions)
 
     const query = await GET_DB().collection(COURSE_COLLECTION_NAME).aggregate(
       [
@@ -142,7 +160,7 @@ const getDetails = async (userId, courseId) => {
     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).aggregate([
       { $match: { $and: queryConditions } },
       { $lookup: {
-        from: lessonModel.LESSON_COLLECTION_NAME,
+        from: lessonModel.COURSE_COLLECTION_NAME,
         localField: '_id',
         foreignField: 'course_Id',
         as: 'Lessons'
@@ -255,16 +273,50 @@ const pushMemberIds = async (courseId, userId) => {
   } catch (error) { throw error }
 }
 
-// const pullMemberIds = async (userId) => {
-//   try {
-//     const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
-//       { _id: new ObjectId(String(userId.course_Id)) },
-//       { $pull: { memberIds: new ObjectId(String(userId._id)) } },
-//       { returnDocument: 'after' }
-//     )
-//     return result
-//   } catch (error) { throw error }
-// }
+/**
+ * Đẩy một phần tử comment vào đầu mảng comments!
+ * - Trong JS, ngược lại với push (thêm phần tử vào cuối mảng), unshift (thêm phần tử vào đầu mảng)
+ * - Nhưng trong MongoDB hiện tại chỉ có $push --> cách để thêm phần tử vào đầu mảng:
+ * * Vẫn dùng $push, nhưng bọc data vào Array ở trong $each và chỉ định $position: 0
+ */
+const unshiftNewComment = async (courseId, commentData) => {
+  try {
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(courseId)) },
+      { $push: { comments: { $each: [commentData], $position: 0 } } },
+      { returnDocument: 'after' }
+    )
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+
+//Hàm xử lí cập nhật thêm hoặc xóa member khỏi course theo action
+const updateMembers = async (courseId, incomingMemberInfo) => {
+  try {
+    // Tạo ra một biến updateCondition ban đầu là rỗng
+    let updateCondition = {}
+
+    if (incomingMemberInfo.action === MEMBER_ACTIONS.ADD) {
+      updateCondition = { $push: { memberIds: new ObjectId(String(incomingMemberInfo.userId)) } }
+    }
+
+    if (incomingMemberInfo.action === MEMBER_ACTIONS.REMOVE) {
+      updateCondition = { $pull: { memberIds: new ObjectId(String(incomingMemberInfo.userId)) } }
+    }
+
+    const result = await GET_DB().collection(COURSE_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(courseId)) },
+      updateCondition,
+      { returnDocument: 'after' }
+    )
+
+    return result
+  } catch (error) { throw new Error(error) }
+}
 
 
 export const courseModel = {
@@ -279,5 +331,7 @@ export const courseModel = {
   deleteOneById,
   pullLessonIds,
   pullQuizIds,
-  pushMemberIds
+  pushMemberIds,
+  unshiftNewComment,
+  updateMembers
 }
