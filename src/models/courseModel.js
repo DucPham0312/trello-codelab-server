@@ -32,7 +32,6 @@ const COURSE_COLLECTION_SCHEMA = Joi.object({
   ),
   star: Joi.number().integer().required(),
   catalog: Joi.string().required().trim().min(3).strict(),
-  course_image: Joi.string().required().trim().strict(),
   completion_certificate: Joi.boolean().required(),
   enrollment_status: Joi.string().valid('Open', 'Closed').required(),
   cover: Joi.string().default(null),

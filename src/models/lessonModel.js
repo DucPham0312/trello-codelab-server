@@ -13,9 +13,7 @@ const LESSON_COLLECTION_SCHEMA = Joi.object({
   lesson_name: Joi.string().required().min(3).max(50).trim().strict(),
   lesson_duration: Joi.number().integer().min(0).required(),
   content: Joi.string().optional().trim().strict(),
-  video_url: Joi.string().required().trim().strict(),
   rating: Joi.number().min(0).max(5).required(),
-  resource_url: Joi.string().required().trim().strict(),
   quizIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),

@@ -10,9 +10,7 @@ const createNew = async (req, res, next) => {
     lesson_name: Joi.string().required().min(3).max(50).trim().strict(),
     lesson_duration: Joi.number().integer().min(0).required(),
     content: Joi.string().optional().trim().strict(),
-    video_url: Joi.string().required().trim().strict(),
-    rating: Joi.number().min(0).max(5).required(),
-    resource_url: Joi.string().required().trim().strict()
+    rating: Joi.number().min(0).max(5).required()
   })
 
   try {
