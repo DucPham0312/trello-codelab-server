@@ -6,8 +6,11 @@ import ApiError from '~/utils/ApiError'
 //Middleware đảm nhiệm việc quan trọng: Xác thực JWT accessToken nhận đc từ FE có hợp lệ ko
 
 const isAuthorized = async (req, res, next) => {
-  //Lấy accessToken nămf trong request cookies phía client
+  //Cách 1: Lấy accessToken nằm trong req cookie phía client
   const clientAccessToken = req.cookies?.accessToken
+
+  //Cách 2: Lấy accessToken trong trường hợp phía FE lưu localStorage và gửi lên thông qua header authorization
+  // const accessTokenFromHeader = req.headers.authorization
 
   //Nếu client accessToken không tồn tại thì trả về lỗi
   if (!clientAccessToken) {
@@ -17,7 +20,11 @@ const isAuthorized = async (req, res, next) => {
 
   try {
     //Thực hiện giải mã token xem có hợp lệ hay ko
-    const accessTokenDecoded = await JwtProvider.verifyToken(clientAccessToken, env.ACCESS_TOKEN_SECRET_SIGNATURE)
+    const accessTokenDecoded = await JwtProvider.verifyToken(
+      clientAccessToken,
+      // accessTokenFromHeader.substring('Bearer '.length), //Cách 2
+      env.ACCESS_TOKEN_SECRET_SIGNATURE)
+
     // console.log('accessTokenDecoded', accessTokenDecoded)
 
     //Nếu token hợp lệ, cần lưu thông tin giải mã được vào req.JwtDecoded, để sử dụng cho tầng cần xử lí phía sau
