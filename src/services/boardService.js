@@ -1,0 +1,94 @@
+/* eslint-disable no-useless-catch */
+import { slugify } from '~/utils/formatters'
+import { courseModel } from '~/models/courseModel'
+import ApiError from '~/utils/ApiError'
+import { StatusCodes } from 'http-status-codes'
+import { cloneDeep } from 'lodash'
+import { lessonModel } from '~/models/lessonModel'
+import { quizModel } from '~/models/quizModel'
+import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+import { boardModel } from '~/models/boardModel'
+
+const createNew = async (reqBody) => {
+    try {
+        const newBoard = {
+            title: reqBody.title,
+            description: reqBody.description,
+            type: reqBody.type
+        }
+
+        const createdBoard = await boardModel.createNew(newBoard)
+        return createdBoard
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const getAllCourses = async (userId, page, itemsPerPage, queryFilters) => {
+    try {
+        //Nếu không tồn tại page hoặc itemPerPage từ FE thì cần phải luôn gắn giá trị mặc định
+        if (!page) page = DEFAULT_PAGE
+        if (!itemsPerPage) itemsPerPage = DEFAULT_ITEMS_PER_PAGE
+
+        const results = await courseModel.getAllCourses(
+            userId,
+            parseInt(page, 10),
+            parseInt(itemsPerPage, 10),
+            queryFilters
+        )
+
+        return results
+    } catch (error) { throw error }
+}
+
+const getDetails = async (boardId) => {
+    try {
+        const board = await boardModel.findOneById(boardId)
+        if (!board) {
+            throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+        }
+        return board
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const update = async (boardId, reqBody) => {
+    try {
+        const updateData = {
+            ...reqBody
+        }
+
+        const updatedBoard = await boardModel.update(boardId, updateData)
+        if (!updatedBoard) {
+            throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+        }
+
+        return updatedBoard
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const deleteItem = async (boardId) => {
+    try {
+        const targetBoard = await boardModel.findOneById(boardId)
+        if (!targetBoard) {
+            throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+        }
+
+        await boardModel.deleteOne(boardId)
+        return { deleteResult: 'Board deleted successfully!' }
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+export const boardService = {
+    createNew,
+    getAllCourses,
+    getDetails,
+    update,
+    deleteItem
+}

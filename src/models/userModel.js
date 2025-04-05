@@ -1,87 +1,110 @@
 import Joi from 'joi'
-import { ObjectId } from 'mongodb'
-import { GET_DB } from '~/config/mongodb'
-import { EMAIL_RULE, EMAIL_RULE_MESSAGE } from '~/utils/validators'
+import { GET_DB } from '~/config/mysql'
+import { EMAIL_RULE, EMAIL_RULE_MESSAGE, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '~/utils/validators'
+import { v4 as uuidv4 } from 'uuid'
 
 //Define 2 roles for user
 const USER_ROLES = {
-  CLIENT: 'client',
-  ADMIN: 'admin'
+    CLIENT: 'client',
+    ADMIN: 'admin'
 }
 
-//Define Collection
-const USER_COLLECTION_NAME = 'Users'
-const USER_COLLECTION_SCHEMA = Joi.object({
-  email: Joi.string().required().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE), //unique
-  password: Joi.string().required(),
-
-  //username cắt ra từ email có thể ko unique
-  username: Joi.string().required().trim().strict(),
-  displayName: Joi.string().required().trim().strict(),
-  avatar: Joi.string().default(null),
-  role: Joi.string().valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN).default(USER_ROLES.CLIENT),
-
-  isActive: Joi.boolean().default(false),
-  verifyToken: Joi.string(),
-
-  createdAt: Joi.date().timestamp('javascript').default(Date.now),
-  updatedAt: Joi.date().timestamp('javascript').default(null),
-  _destroy: Joi.boolean().default(false)
+//Define Schema
+const USER_SCHEMA = Joi.object({
+    email: Joi.string().required().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
+    password: Joi.string().required().pattern(PASSWORD_RULE).message(PASSWORD_RULE_MESSAGE),
+    username: Joi.string().trim().strict().allow(null),
+    display_name: Joi.string().trim().strict().allow(null),
+    avatar: Joi.string().allow(null),
+    role: Joi.string().valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN).default(USER_ROLES.CLIENT),
+    is_active: Joi.boolean().default(false),
+    verify_token: Joi.string().allow(null),
+    metadata: Joi.object().allow(null)
 })
 
-const INVALID_UPDATE_FIELDS = ['_id', 'email', 'username', 'createdAt']
-
 const validateBeforeCreate = async (data) => {
-  return await USER_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
+    return await USER_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
 const createNew = async (data) => {
-  try {
-    const validData = await validateBeforeCreate(data)
-    const createdUser = await GET_DB().collection(USER_COLLECTION_NAME).insertOne(validData)
-    return createdUser
-  } catch (error) { throw new Error(error) }
+    try {
+        const validData = await validateBeforeCreate(data)
+        const id = uuidv4()
+
+        const query = `
+            INSERT INTO users (
+                id, email, password, username, display_name, 
+                avatar, role, is_active, verify_token, metadata
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+
+        const values = [
+            id,
+            validData.email,
+            validData.password,
+            validData.username,
+            validData.display_name,
+            validData.avatar,
+            validData.role,
+            validData.is_active,
+            validData.verify_token,
+            validData.metadata ? JSON.stringify(validData.metadata) : null
+        ]
+
+        const [result] = await GET_DB().execute(query, values)
+        return { id, ...validData }
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
 const findOneById = async (id) => {
-  try {
-    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOne({
-      _id: new ObjectId(String(id))
-    })
-    return result
-  } catch (error) { throw new Error(error) }
+    try {
+        const query = 'SELECT * FROM users WHERE id = ?'
+        const [rows] = await GET_DB().execute(query, [id])
+        return rows[0] || null
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
-const findOneByEmail = async (emailValue) => {
-  try {
-    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOne({ email: emailValue })
-    return result
-  } catch (error) { throw new Error(error) }
+const findOneByEmail = async (email) => {
+    try {
+        const query = 'SELECT * FROM users WHERE email = ?'
+        const [rows] = await GET_DB().execute(query, [email])
+        return rows[0] || null
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
-const update = async (userId, updateData) => {
-  try {
-    //Lọc field không cho phép cập nhật
-    Object.keys(updateData).forEach( fieldName => {
-      if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
-        delete updateData[fieldName]
-      }
-    })
+const update = async (id, data) => {
+    try {
+        const validData = await validateBeforeCreate(data)
+        const fields = []
+        const values = []
 
-    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOneAndUpdate(
-      { _id: new ObjectId(String(userId)) },
-      { $set: updateData },
-      { returnDocument: 'after' } //Trả về kết quả mới sau khi cập nhật
-    )
-    return result
-  } catch (error) { throw new Error(error) }
+        Object.entries(validData).forEach(([key, value]) => {
+            if (key !== 'id' && key !== 'email' && key !== 'created_at') {
+                fields.push(`${key} = ?`)
+                values.push(value)
+            }
+        })
+
+        values.push(id)
+        const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`
+        await GET_DB().execute(query, values)
+
+        return await findOneById(id)
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
 export const userModel = {
-  USER_COLLECTION_NAME,
-  USER_COLLECTION_SCHEMA,
-  createNew,
-  findOneById,
-  findOneByEmail,
-  update
+    USER_SCHEMA,
+    createNew,
+    findOneById,
+    findOneByEmail,
+    update
 }

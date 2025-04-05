@@ -6,18 +6,18 @@ import { authMiddleware } from '~/middlewares/authMiddleware'
 const Router = express.Router()
 
 Router.route('/course')
-  .post(
-    authMiddleware.isAuthorized,
-    invitationValidation.createNewCourseInvitation,
-    invitationController.createNewCourseInvitation
-  )
+    .post(
+        authMiddleware.isAuthorized,
+        invitationValidation.createNewCourseInvitation,
+        invitationController.createNewCourseInvitation
+    )
 
 //Get intitation by User
 Router.route('/')
-  .get(authMiddleware.isAuthorized, invitationController.getInvitations)
+    .get(authMiddleware.isAuthorized, invitationController.getInvitations)
 
 //Update Course Invitation
 Router.route('/course/:invitationId')
-  .put(authMiddleware.isAuthorized, invitationController.updateCourseInvitation)
+    .put(authMiddleware.isAuthorized, invitationController.updateCourseInvitation)
 
 export const invitationRoute = Router

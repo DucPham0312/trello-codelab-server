@@ -7,9 +7,9 @@ import JWT from 'jsonwebtoken'
  * tokenLife: Thời gian sống của Token
  */
 const generateToken = async (userInfo, secretSignature, tokenLife) => {
-  try {
-    return JWT.sign(userInfo, secretSignature, { algorithm: 'HS256', expiresIn: tokenLife })
-  } catch (error) { throw new Error(error) }
+    try {
+        return JWT.sign(userInfo, secretSignature, { algorithm: 'HS256', expiresIn: tokenLife })
+    } catch (error) { throw new Error(error) }
 }
 
 
@@ -18,12 +18,12 @@ const generateToken = async (userInfo, secretSignature, tokenLife) => {
  * -->Token được tạo ra đúng với chữ kí bí mật secretSignature
  */
 const verifyToken = async (token, secretSignature) => {
-  try {
-    return JWT.verify(token, secretSignature)
-  } catch (error) { throw new Error(error) }
+    try {
+        return JWT.verify(token, secretSignature)
+    } catch (error) { throw new Error(error) }
 }
 
 export const JwtProvider = {
-  generateToken,
-  verifyToken
+    generateToken,
+    verifyToken
 }

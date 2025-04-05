@@ -1,8 +1,8 @@
 import express from 'express'
 import { StatusCodes } from 'http-status-codes'
-import { courseRoute } from '~/routes/v1/courseRoute'
-import { lessonRoute } from '~/routes/v1/lessonRoute'
-import { quizRoute } from '~/routes/v1/quizRoute'
+import { boardRoute } from '~/routes/v1/boardRoute'
+import { columnRoute } from '~/routes/v1/columnRoute'
+import { cardRoute } from '~/routes/v1/cardRoute'
 import { userRoute } from '~/routes/v1/userRoute'
 import { invitationRoute } from '~/routes/v1/invitationRoute'
 
@@ -11,15 +11,15 @@ const Router = express.Router()
 
 //Check API V1 status
 Router.get('/status', (req, res) => {
-  res.status(StatusCodes.OK).json({ message: 'APIs V1 are ready to use.', code: StatusCodes.OK })
+    res.status(StatusCodes.OK).json({ message: 'APIs V1 are ready to use.', code: StatusCodes.OK })
 })
 
 //Board APIs
-Router.use('/courses', courseRoute)
+Router.use('/boards', boardRoute)
 
-Router.use('/lessons', lessonRoute)
+Router.use('/columns', columnRoute)
 
-Router.use('/quizs', quizRoute)
+Router.use('/cards', cardRoute)
 
 Router.use('/users', userRoute)
 
