@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { GET_DB } from '~/config/mysql'
+import { db } from '~/utils/db'
 import { EMAIL_RULE, EMAIL_RULE_MESSAGE, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '~/utils/validators'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -18,8 +18,7 @@ const USER_SCHEMA = Joi.object({
     avatar: Joi.string().allow(null),
     role: Joi.string().valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN).default(USER_ROLES.CLIENT),
     is_active: Joi.boolean().default(false),
-    verify_token: Joi.string().allow(null),
-    metadata: Joi.object().allow(null)
+    is_deleted: Joi.boolean().default(false)
 })
 
 const validateBeforeCreate = async (data) => {
@@ -33,9 +32,8 @@ const createNew = async (data) => {
 
         const query = `
             INSERT INTO users (
-                id, email, password, username, display_name, 
-                avatar, role, is_active, verify_token, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, email, password, username, display_name, avatar, role, is_active, is_deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 
         const values = [
@@ -47,11 +45,10 @@ const createNew = async (data) => {
             validData.avatar,
             validData.role,
             validData.is_active,
-            validData.verify_token,
-            validData.metadata ? JSON.stringify(validData.metadata) : null
+            validData.is_deleted
         ]
 
-        const [result] = await GET_DB().execute(query, values)
+        await db.query(query, values)
         return { id, ...validData }
     } catch (error) {
         throw new Error(error)
@@ -60,8 +57,8 @@ const createNew = async (data) => {
 
 const findOneById = async (id) => {
     try {
-        const query = 'SELECT * FROM users WHERE id = ?'
-        const [rows] = await GET_DB().execute(query, [id])
+        const query = 'SELECT * FROM users WHERE id = ? AND is_deleted = false'
+        const [rows] = await db.query(query, [id])
         return rows[0] || null
     } catch (error) {
         throw new Error(error)
@@ -70,8 +67,8 @@ const findOneById = async (id) => {
 
 const findOneByEmail = async (email) => {
     try {
-        const query = 'SELECT * FROM users WHERE email = ?'
-        const [rows] = await GET_DB().execute(query, [email])
+        const query = 'SELECT * FROM users WHERE email = ? AND is_deleted = false'
+        const [rows] = await db.query(query, [email])
         return rows[0] || null
     } catch (error) {
         throw new Error(error)
@@ -85,15 +82,15 @@ const update = async (id, data) => {
         const values = []
 
         Object.entries(validData).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'email' && key !== 'created_at') {
+            if (key !== 'id' && key !== 'created_at') {
                 fields.push(`${key} = ?`)
                 values.push(value)
             }
         })
 
         values.push(id)
-        const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`
-        await GET_DB().execute(query, values)
+        const query = `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        await db.query(query, values)
 
         return await findOneById(id)
     } catch (error) {
@@ -101,10 +98,22 @@ const update = async (id, data) => {
     }
 }
 
+const deleteOne = async (id) => {
+    try {
+        const query = 'UPDATE users SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        await db.query(query, [id])
+        return true
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
 export const userModel = {
+    USER_ROLES,
     USER_SCHEMA,
     createNew,
     findOneById,
     findOneByEmail,
-    update
+    update,
+    deleteOne
 }

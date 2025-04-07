@@ -8,7 +8,7 @@ import { multerUploadMiddleware } from '~/middlewares/multerUploadMiddleware'
 const Router = express.Router()
 
 Router.route('/')
-    .get(authMiddleware.isAuthorized, columnController.getAllLessons)
+    .get(authMiddleware.isAuthorized, columnController.getAllColumns)
     .post(authMiddleware.isAuthorized, columnValidation.createNew, columnController.createNew)
 
 Router.route('/:id')

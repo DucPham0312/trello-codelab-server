@@ -1,141 +1,195 @@
 import Joi from 'joi'
-import { ObjectId } from 'mongodb'
-import { GET_DB } from '~/config/mongodb'
-import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
-import { INVITATION_TYPES, COURSE_INVITATION_STATUS, BOARD_INVITATION_STATUS } from '~/utils/constants'
-import { userModel } from '~/models/userModel'
-import { courseModel } from '~/models/courseModel'
-import { boardModel } from '~/models/boardModel'
+import { db } from '~/utils/db'
+import { v4 as uuidv4 } from 'uuid'
+import { userModel } from './userModel'
+import { boardModel } from './boardModel'
 
-
-// Define Collection (name & schema)
-const INVITATION_COLLECTION_NAME = 'Invitations'
-const INVITATION_COLLECTION_SCHEMA = Joi.object({
-    inviterId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE), // người đi mời
-    inviteeId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE), // người được mời
-    type: Joi.string().required().valid(...Object.values(INVITATION_TYPES)),
-
-    // Lời mời là course thì sẽ lưu thêm dữ liệu courseInvitation – optional
-    courseInvitation: Joi.object({
-        courseId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-        status: Joi.string().required().valid(...Object.values(COURSE_INVITATION_STATUS))
-    }).optional(),
-
-    createdAt: Joi.date().timestamp('javascript').default(Date.now),
-    updatedAt: Joi.date().timestamp('javascript').default(null),
-    _destroy: Joi.boolean().default(false)
+// Định nghĩa schema cho invitation
+const INVITATION_SCHEMA = Joi.object({
+    inviter_id: Joi.string().required(),
+    invited_id: Joi.string().required(),
+    type: Joi.string().valid('board', 'course').required(),
+    board_id: Joi.string().when('type', {
+        is: 'board',
+        then: Joi.required(),
+        otherwise: Joi.optional()
+    }),
+    status: Joi.string().valid('pending', 'accepted', 'rejected').default('pending'),
+    is_deleted: Joi.boolean().default(false)
 })
 
-const INVALID_UPDATE_FIELDS = ['_id', 'inviterId', 'inviteeId', 'type', 'createdAt']
-
+// Kiểm tra dữ liệu trước khi tạo invitation mới
 const validateBeforeCreate = async (data) => {
-    return await INVITATION_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
+    return await INVITATION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNewCourseInvitation = async (data) => {
+const createNew = async (data) => {
     try {
         const validData = await validateBeforeCreate(data)
-        // Biến đổi một số dữ liệu liên quan tới ObjectId chuẩn chỉnh
-        let newInvitationToAdd = {
-            ...validData,
-            inviterId: new ObjectId(String(validData.inviterId)),
-            inviteeId: new ObjectId(String(validData.inviteeId))
+        
+        // Kiểm tra người mời có tồn tại không
+        const inviter = await userModel.findOneById(validData.inviter_id)
+        if (!inviter) {
+            throw new Error('Inviter not found')
         }
 
-        // Nếu tồn tại dữ liệu courseInvitation thì update cho cái courseId
-        if (validData.courseInvitation) {
-            newInvitationToAdd.courseInvitation = {
-                ...validData.courseInvitation,
-                courseId: new ObjectId(String(validData.courseInvitation.courseId))
+        // Kiểm tra người được mời có tồn tại không
+        const invited = await userModel.findOneById(validData.invited_id)
+        if (!invited) {
+            throw new Error('Invited user not found')
+        }
+
+        // Nếu là lời mời vào board, kiểm tra board có tồn tại không
+        if (validData.type === 'board' && validData.board_id) {
+            const board = await boardModel.findOneById(validData.board_id)
+            if (!board) {
+                throw new Error('Board not found')
             }
         }
 
-        // Gọi insert vào DB
-        const createdInvitation = await GET_DB().collection(INVITATION_COLLECTION_NAME).insertOne(newInvitationToAdd)
-        return createdInvitation
-    } catch (error) { throw new Error(error) }
+        const id = uuidv4()
+
+        // Tạo invitation mới
+        const query = `
+            INSERT INTO invitations (
+                id, inviter_id, invited_id, type, board_id, status, is_deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `
+
+        const values = [
+            id,
+            validData.inviter_id,
+            validData.invited_id,
+            validData.type,
+            validData.board_id,
+            validData.status,
+            validData.is_deleted
+        ]
+
+        await db.query(query, values)
+        return { id, ...validData }
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
-const findOneById = async (invitationId) => {
+// Tìm invitation theo id
+const findOneById = async (id) => {
     try {
-        const result = await GET_DB().collection(INVITATION_COLLECTION_NAME).findOne({ _id: new ObjectId(String(invitationId)) })
-        return result
-    } catch (error) { throw new Error(error) }
+        const query = 'SELECT * FROM invitations WHERE id = ? AND is_deleted = false'
+        const [rows] = await db.query(query, [id])
+        return rows[0] || null
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
-const update = async (invitationId, updateData) => {
+// Lấy tất cả invitations của một board
+const findAllByBoardId = async (boardId) => {
     try {
-        // Lọc những field mà chúng ta không cho phép cập nhật linh tinh
-        Object.keys(updateData).forEach(fieldName => {
-            if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
-                delete updateData[fieldName]
+        const query = 'SELECT * FROM invitations WHERE board_id = ? AND is_deleted = false'
+        const [rows] = await db.query(query, [boardId])
+        return rows
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+// Lấy tất cả invitations của một user (cả người mời và được mời)
+const findAllByUserId = async (userId) => {
+    try {
+        const query = 'SELECT * FROM invitations WHERE (inviter_id = ? OR invited_id = ?) AND is_deleted = false'
+        const [rows] = await db.query(query, [userId, userId])
+        return rows
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+// Cập nhật thông tin invitation
+const update = async (id, data) => {
+    try {
+        const validData = await validateBeforeCreate(data)
+        const fields = []
+        const values = []
+
+        // Chỉ cập nhật các trường được phép
+        Object.entries(validData).forEach(([key, value]) => {
+            if (key !== 'id' && key !== 'inviter_id' && key !== 'invited_id' && key !== 'created_at') {
+                fields.push(`${key} = ?`)
+                values.push(value)
             }
         })
 
-        // Đối với những dữ liệu liên quan ObjectId, biến đổi ở đây
-        if (updateData.courseInvitation) {
-            updateData.courseInvitation = {
-                ...updateData.courseInvitation,
-                courseId: new ObjectId(String(updateData.courseInvitation.courseId))
+        values.push(id)
+        const query = `UPDATE invitations SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        await db.query(query, values)
+
+        return await findOneById(id)
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+// Xóa invitation (soft delete)
+const deleteOne = async (id) => {
+    try {
+        const query = 'UPDATE invitations SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        await db.query(query, [id])
+        return true
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+// Xử lý khi chấp nhận invitation
+const acceptInvitation = async (id) => {
+    try {
+        const invitation = await findOneById(id)
+        if (!invitation) {
+            throw new Error('Invitation not found')
+        }
+
+        // Nếu là lời mời vào board
+        if (invitation.type === 'board' && invitation.board_id) {
+            // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
+            await db.query('START TRANSACTION')
+
+            try {
+                // Cập nhật trạng thái invitation thành accepted
+                await update(id, { status: 'accepted' })
+
+                // Thêm user vào danh sách owner của board
+                const ownerQuery = `
+                    INSERT INTO board_owners (
+                        board_id, user_id
+                    ) VALUES (?, ?)
+                `
+
+                await db.query(ownerQuery, [invitation.board_id, invitation.invited_id])
+
+                // Commit transaction nếu thành công
+                await db.query('COMMIT')
+            } catch (error) {
+                // Rollback nếu có lỗi
+                await db.query('ROLLBACK')
+                throw error
             }
         }
 
-        const result = await GET_DB().collection(INVITATION_COLLECTION_NAME).findOneAndUpdate(
-            { _id: new ObjectId(String(invitationId)) },
-            { $set: updateData },
-            { returnDocument: 'after' }
-        )
-        return result
-    } catch (error) { throw new Error(error) }
-}
-
-const findByUser = async (userId) => {
-    try {
-        const queryConditions = [
-            { inviteeId: new ObjectId(String(userId)) }, //Tìm theo inviteeId- người được mời thực hiện req
-            { _destroy: false }
-        ]
-        const results = await GET_DB().collection(INVITATION_COLLECTION_NAME).aggregate([
-            { $match: { $and: queryConditions } },
-            {
-                $lookup: {
-                    from: userModel.USER_COLLECTION_NAME,
-                    localField: 'inviterId',
-                    foreignField: '_id',
-                    as: 'Inviter',
-                    // pipeline trong lookup để xử lý một hoặc nhiều luồng cần thiết
-                    // $project để chỉ định vài field không muốn lấy về bằng cách gán nó giá trị 0
-                    pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
-                }
-            },
-            {
-                $lookup: {
-                    from: userModel.USER_COLLECTION_NAME,
-                    localField: 'inviteeId',
-                    foreignField: '_id',
-                    as: 'Invitee',
-                    pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
-                }
-            },
-            {
-                $lookup: {
-                    from: courseModel.COURSE_COLLECTION_NAME,
-                    localField: 'courseInvitation.courseId', //Thông tin course
-                    foreignField: '_id',
-                    as: 'Course'
-                }
-            }
-        ]).toArray()
-
-        return results
-    } catch (error) { throw new Error(error) }
+        return await findOneById(id)
+    } catch (error) {
+        throw new Error(error)
+    }
 }
 
 export const invitationModel = {
-    INVITATION_COLLECTION_NAME,
-    INVITATION_COLLECTION_SCHEMA,
-    createNewCourseInvitation,
+    INVITATION_SCHEMA,
+    createNew,
     findOneById,
+    findAllByBoardId,
+    findAllByUserId,
     update,
-    findByUser
+    deleteOne,
+    acceptInvitation
 }

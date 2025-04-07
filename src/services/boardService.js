@@ -1,11 +1,10 @@
 /* eslint-disable no-useless-catch */
 import { slugify } from '~/utils/formatters'
-import { courseModel } from '~/models/courseModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
-import { lessonModel } from '~/models/lessonModel'
-import { quizModel } from '~/models/quizModel'
+import { columnModel } from '~/models/columnModel'
+import { cardModel } from '~/models/cardModel'
 import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import { boardModel } from '~/models/boardModel'
@@ -25,13 +24,13 @@ const createNew = async (reqBody) => {
     }
 }
 
-const getAllCourses = async (userId, page, itemsPerPage, queryFilters) => {
+const getAllBoards = async (userId, page, itemsPerPage, queryFilters) => {
     try {
         //Nếu không tồn tại page hoặc itemPerPage từ FE thì cần phải luôn gắn giá trị mặc định
         if (!page) page = DEFAULT_PAGE
         if (!itemsPerPage) itemsPerPage = DEFAULT_ITEMS_PER_PAGE
 
-        const results = await courseModel.getAllCourses(
+        const results = await boardModel.getAllBoards(
             userId,
             parseInt(page, 10),
             parseInt(itemsPerPage, 10),
@@ -87,7 +86,7 @@ const deleteItem = async (boardId) => {
 
 export const boardService = {
     createNew,
-    getAllCourses,
+    getAllBoards,
     getDetails,
     update,
     deleteItem

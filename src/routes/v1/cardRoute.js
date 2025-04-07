@@ -7,7 +7,7 @@ import { authMiddleware } from '~/middlewares/authMiddleware'
 const Router = express.Router()
 
 Router.route('/')
-    .get(authMiddleware.isAuthorized, cardController.getAllQuizs)
+    .get(authMiddleware.isAuthorized, cardController.getAllCards)
     .post(authMiddleware.isAuthorized, cardValidation.createNew, cardController.createNew)
 
 Router.route('/:id')

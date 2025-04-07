@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 import { userModel } from '~/models/userModel'
-import { courseModel } from '~/models/courseModel'
+import { boardModel } from '~/models/boardModel'
 import { invitationModel } from '~/models/invitationModel'
 import { INVITATION_TYPES, COURSE_INVITATION_STATUS } from '~/utils/constants'
 import { pickUser } from '~/utils/formatters'
@@ -13,7 +13,7 @@ const createNewCourseInvitation = async (reqBody, inviterId) => {
         // Người được mời: lấy theo email nhận từ phía FE
         const invitee = await userModel.findOneByEmail(reqBody.inviteeEmail)
         // Tìm luôn cái course ra để lấy data xử lý
-        const course = await courseModel.findOneById(reqBody.courseId)
+        const course = await boardModel.findOneById(reqBody.courseId)
 
         // Nếu không tồn tại 1 trong 3 thì cứ thẳng tay reject
         if (!invitee || !inviter || !course) {
@@ -74,7 +74,7 @@ const updateCourseInvitation = async (userId, invitationId, status) => {
 
         // Khi có Invitation --> lấy full thông tin của course
         const courseId = getInvitation.courseInvitation.courseId
-        const getCourse = await courseModel.findOneById(courseId)
+        const getCourse = await boardModel.findOneById(courseId)
         if (!getCourse) throw new ApiError(StatusCodes.NOT_FOUND, 'Course not found!')
 
         // Kiểm tra nếu status là ACCEPTED join course mà user (invitee) đã là owner hoặc member của course rồi thì trả về thông báo lỗi.
@@ -97,7 +97,7 @@ const updateCourseInvitation = async (userId, invitationId, status) => {
 
         //Bước 2: Nếu trường hợp Accept lời mời thành công, thêm thông tin của userId vào bản ghi memberIds trong course.
         if (updatedInvitation.courseInvitation.status === COURSE_INVITATION_STATUS.ACCEPTED) {
-            await courseModel.pushMemberIds(courseId, userId)
+            await boardModel.pushMemberIds(courseId, userId)
         }
 
         return updatedInvitation

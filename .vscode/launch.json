@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Debug with Babel + Alias ~",
+        "runtimeExecutable": "npx",
+        "runtimeArgs": [
+          "babel-node",
+          "src/server.js"
+        ],
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "BUILD_MODE": "dev"
+        },
+        "skipFiles": [
+          "<node_internals>/**"
+        ]
+      }
+    ]
+  }
+  
