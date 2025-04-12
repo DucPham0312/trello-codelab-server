@@ -1,6 +1,8 @@
 import Joi from 'joi'
-import { db } from '~/utils/db'
+import db from '~/utils/db'
 import { v4 as uuidv4 } from 'uuid'
+import { StatusCodes } from 'http-status-codes'
+import ApiError from '~/utils/ApiError'
 
 const BOARD_SCHEMA = Joi.object({
     title: Joi.string().required().trim().strict(),
@@ -13,10 +15,11 @@ const validateBeforeCreate = async (data) => {
     return await BOARD_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNew = async (data, userId) => {
+const createNew = async (userId, data) => {
     try {
         const validData = await validateBeforeCreate(data)
         const id = uuidv4()
+        const created_by = userId
 
         // Start transaction
         await db.query('START TRANSACTION')
@@ -25,7 +28,7 @@ const createNew = async (data, userId) => {
             // Insert board
             const boardQuery = `
                 INSERT INTO boards (
-                    id, title, description, type, is_deleted
+                    id, title, description, type, created_by
                 ) VALUES (?, ?, ?, ?, ?)
             `
 
@@ -34,7 +37,7 @@ const createNew = async (data, userId) => {
                 validData.title,
                 validData.description,
                 validData.type,
-                validData.is_deleted
+                created_by
             ]
 
             await db.query(boardQuery, boardValues)
@@ -62,11 +65,25 @@ const createNew = async (data, userId) => {
     }
 }
 
-const findOneById = async (id) => {
+const findOneById = async (userId, boardId) => {
     try {
-        const query = 'SELECT * FROM boards WHERE id = ? AND is_deleted = false'
-        const [rows] = await db.query(query, [id])
-        return rows[0] || null
+        // Check if user has access to this board
+        const ownerQuery = `
+            SELECT * FROM board_owners 
+            WHERE board_id = ? AND user_id = ?
+        `
+        const [ownerRows] = await db.query(ownerQuery, [boardId, userId])
+
+        if (!ownerRows.length) {
+            throw new ApiError(StatusCodes.FORBIDDEN, 'Do not have permission to view this board')
+        }
+
+        // If user has access, get board details
+        const boardQuery = 'SELECT * FROM boards WHERE id = ? AND is_deleted = false'
+        const [boardRows] = await db.query(boardQuery, [boardId])
+
+        return boardRows[0] || null
+
     } catch (error) {
         throw new Error(error)
     }

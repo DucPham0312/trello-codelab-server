@@ -1,7 +1,9 @@
 import Joi from 'joi'
-import { db } from '~/utils/db'
+import db from '~/utils/db'
 import { EMAIL_RULE, EMAIL_RULE_MESSAGE, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '~/utils/validators'
 import { v4 as uuidv4 } from 'uuid'
+
+
 
 //Define 2 roles for user
 const USER_ROLES = {
@@ -18,8 +20,10 @@ const USER_SCHEMA = Joi.object({
     avatar: Joi.string().allow(null),
     role: Joi.string().valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN).default(USER_ROLES.CLIENT),
     is_active: Joi.boolean().default(false),
-    is_deleted: Joi.boolean().default(false)
+    verify_token: Joi.string()
 })
+
+const INVALID_UPDATE_FIELDS = ['id', 'email', 'username', 'updated_at']
 
 const validateBeforeCreate = async (data) => {
     return await USER_SCHEMA.validateAsync(data, { abortEarly: false })
@@ -32,7 +36,7 @@ const createNew = async (data) => {
 
         const query = `
             INSERT INTO users (
-                id, email, password, username, display_name, avatar, role, is_active, is_deleted
+                id, email, password, username, display_name, avatar, role, is_active, verify_token
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 
@@ -42,10 +46,11 @@ const createNew = async (data) => {
             validData.password,
             validData.username,
             validData.display_name,
+
             validData.avatar,
             validData.role,
             validData.is_active,
-            validData.is_deleted
+            validData.verify_token
         ]
 
         await db.query(query, values)
@@ -57,7 +62,7 @@ const createNew = async (data) => {
 
 const findOneById = async (id) => {
     try {
-        const query = 'SELECT * FROM users WHERE id = ? AND is_deleted = false'
+        const query = 'SELECT * FROM users WHERE id = ?'
         const [rows] = await db.query(query, [id])
         return rows[0] || null
     } catch (error) {
@@ -67,7 +72,7 @@ const findOneById = async (id) => {
 
 const findOneByEmail = async (email) => {
     try {
-        const query = 'SELECT * FROM users WHERE email = ? AND is_deleted = false'
+        const query = 'SELECT * FROM users WHERE email = ?'
         const [rows] = await db.query(query, [email])
         return rows[0] || null
     } catch (error) {
@@ -75,28 +80,43 @@ const findOneByEmail = async (email) => {
     }
 }
 
-const update = async (id, data) => {
+const update = async (userId, updateData) => {
     try {
-        const validData = await validateBeforeCreate(data)
-        const fields = []
-        const values = []
-
-        Object.entries(validData).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'created_at') {
-                fields.push(`${key} = ?`)
-                values.push(value)
+        // Lọc field không cho phép cập nhật
+        Object.keys(updateData).forEach(fieldName => {
+            if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+                delete updateData[fieldName]
             }
         })
 
-        values.push(id)
-        const query = `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        // Nếu không còn field hợp lệ nào để cập nhật
+        if (Object.keys(updateData).length === 0) {
+            throw new Error('No valid fields to update.')
+        }
+
+        const fields = []
+        const values = []
+
+        for (const key in updateData) {
+            fields.push(`${key} = ?`)
+            values.push(updateData[key])
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP')
+
+        values.push(userId)
+
+        const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`
         await db.query(query, values)
 
-        return await findOneById(id)
+        return await findOneById(userId)
     } catch (error) {
         throw new Error(error)
     }
 }
+
+export default update
+
 
 const deleteOne = async (id) => {
     try {

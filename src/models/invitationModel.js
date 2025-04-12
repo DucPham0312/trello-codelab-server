@@ -1,5 +1,5 @@
 import Joi from 'joi'
-import { db } from '~/utils/db'
+import db from '~/utils/db'
 import { v4 as uuidv4 } from 'uuid'
 import { userModel } from './userModel'
 import { boardModel } from './boardModel'

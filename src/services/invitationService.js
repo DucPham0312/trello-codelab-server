@@ -23,10 +23,10 @@ const createNewCourseInvitation = async (reqBody, inviterId) => {
         // Tạo data cần thiết để lưu vào trong DB
         const newInvitationData = {
             inviterId,
-            inviteeId: invitee._id.toString(), //chuyển từ ObjectId về String vì qua Model cí check lại ở create
+            inviteeId: invitee.id.toString(), //chuyển từ ObjectId về String vì qua Model cí check lại ở create
             type: INVITATION_TYPES.COURSE_INVITATION,
             courseInvitation: {
-                courseId: course._id.toString(),
+                courseId: course.id.toString(),
                 status: COURSE_INVITATION_STATUS.PENDING
             }
         }

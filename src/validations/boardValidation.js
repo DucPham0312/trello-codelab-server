@@ -6,8 +6,7 @@ import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 const createNew = async (req, res, next) => {
     const correctCondition = Joi.object({
         title: Joi.string().required().min(3).max(50).trim().strict(),
-        description: Joi.string().allow(null),
-        type: Joi.string().required()
+        description: Joi.string().allow(null)
     })
 
     try {

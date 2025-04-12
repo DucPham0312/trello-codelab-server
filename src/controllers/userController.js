@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
 import { userService } from '~/services/userService'
 import ApiError from '~/utils/ApiError'
+import ms from 'ms'
 
 const createNew = async (req, res, next) => {
     try {
@@ -19,6 +20,22 @@ const verifyAccount = async (req, res, next) => {
 const login = async (req, res, next) => {
     try {
         const result = await userService.login(req.body)
+        //Xử lý trả về http only cookie cho phía trình duyệt
+        //maxAge- tg sống cookie khác với token
+        res.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            maxAge: ms('14 days')
+        })
+
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            maxAge: ms('14 days')
+        })
+
         res.status(StatusCodes.OK).json(result)
     } catch (error) { next(error) }
 }
@@ -31,7 +48,7 @@ const logout = async (req, res, next) => {
 
 const refreshToken = async (req, res, next) => {
     try {
-        const refreshToken = req.headers.authorization?.substring('Bearer '.length)
+        const refreshToken = req.body?.refreshToken
         if (!refreshToken) {
             throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token not found')
         }
@@ -45,7 +62,7 @@ const refreshToken = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
-        const userId = req.jwtDecoded._id
+        const userId = req.jwtDecoded.id
         const userAvatarFile = req.file
         // console.log('Controller > userUploadFile: ', userUploadFile)
         const updatedUser = await userService.update(userId, req.body, userAvatarFile)

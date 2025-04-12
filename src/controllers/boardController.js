@@ -3,10 +3,10 @@ import { boardService } from '~/services/boardService'
 
 const createNew = async (req, res, next) => {
     try {
-        const userId = req.jwtDecoded._id
+        const userId = req.jwtDecoded.id
 
         //Điều hướng dữ liệu qua tầng Service
-        const createdBoard = await boardService.creatNew(userId, req.body)
+        const createdBoard = await boardService.createNew(userId, req.body)
 
         //Có kết quả thì trả về Client
         res.status(StatusCodes.CREATED).json(createdBoard)
@@ -15,7 +15,7 @@ const createNew = async (req, res, next) => {
 
 const getAllBoards = async (req, res, next) => {
     try {
-        const userId = req.jwtDecoded._id
+        const userId = req.jwtDecoded.id
         //page và itemsPerPage được truyền vào trong query url từ phía FE nên BE lấy thông qua req.query
         const { page, itemsPerPage, value } = req.query
         const queryFilters = value
@@ -28,7 +28,7 @@ const getAllBoards = async (req, res, next) => {
 
 const getDetails = async (req, res, next) => {
     try {
-        const userId = req.jwtDecoded._id
+        const userId = req.jwtDecoded.id
         const boardId = req.params.id
 
         const board = await boardService.getDetails(userId, boardId)

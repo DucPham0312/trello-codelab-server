@@ -12,6 +12,7 @@ import socketIo from 'socket.io'
 import http from 'http'
 import { inviteUserToBoardSocket } from '~/sockets/inviteUserToBoardSocket'
 import pool from '~/utils/db'
+import cookieParser from 'cookie-parser'
 
 const START_SERVER = () => {
     const app = express()
@@ -24,6 +25,9 @@ const START_SERVER = () => {
 
     //Xử lý CORS
     app.use(cors(corsOptions))
+
+    //Cấu hình Cookie Parser
+    app.use(cookieParser())
 
     //enable req.body json data
     app.use(express.json())

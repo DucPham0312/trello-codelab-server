@@ -1,5 +1,4 @@
 /* eslint-disable no-useless-catch */
-import { slugify } from '~/utils/formatters'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
@@ -9,16 +8,12 @@ import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import { boardModel } from '~/models/boardModel'
 
-const createNew = async (reqBody) => {
+const createNew = async (userId, data) => {
     try {
-        const newBoard = {
-            title: reqBody.title,
-            description: reqBody.description,
-            type: reqBody.type
-        }
+        const createdBoard = await boardModel.createNew(userId, data)
+        const getNewBoard = await boardModel.findOneById(createdBoard.id)
 
-        const createdBoard = await boardModel.createNew(newBoard)
-        return createdBoard
+        return getNewBoard
     } catch (error) {
         throw new Error(error)
     }
@@ -41,9 +36,9 @@ const getAllBoards = async (userId, page, itemsPerPage, queryFilters) => {
     } catch (error) { throw error }
 }
 
-const getDetails = async (boardId) => {
+const getDetails = async (userId, boardId) => {
     try {
-        const board = await boardModel.findOneById(boardId)
+        const board = await boardModel.findOneById(userId, boardId)
         if (!board) {
             throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
         }

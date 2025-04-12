@@ -32,24 +32,21 @@ const createNew = async (reqBody) => {
 
         //Thực hiện lưu thông tin User vào database
         const createdUser = await userModel.createNew(newUser)
+        const getNewUser = await userModel.findOneById(createdUser.id)
 
         //Gửi email cho người dùng xác thực tài khoản
-        const verificationLink = `${WEBSITE_DOMAIN}/account/verification?email=${createdUser.email}&token=${createdUser.verify_token}`
+        const verificationLink = `${WEBSITE_DOMAIN}/account/verification?email=${getNewUser.email}&token=${getNewUser.verify_token}`
         const customSubject = 'Trello CodeLab: Please verify your email before using our services!'
 
-        //Gửi email xác thực
-        await BrevoProvider.sendEmail({
-            to: createdUser.email,
-            subject: customSubject,
-            htmlContent: `
-                <h1>Welcome to Trello CodeLab!</h1>
-                <p>Please click the link below to verify your email:</p>
-                <a href="${verificationLink}">${verificationLink}</a>
-                <p>This link will expire in 24 hours.</p>
-            `
-        })
+        const htmlContent = `
+        <h3>Here is your verification link:</h3>
+        <h3>${verificationLink}</h3>
+        <h3>Sincerely,<br/> - MinhDucday - </h3>
+      `
+        //Gọi tới Provider gửi email
+        await BrevoProvider.sendEmail(getNewUser.email, customSubject, htmlContent)
 
-        return pickUser(createdUser)
+        return pickUser(getNewUser)
     } catch (error) {
         throw new Error(error)
     }
@@ -61,16 +58,16 @@ const verifyAccount = async (reqBody) => {
 
         //Các bước kiểm tra cần thiết
         if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found!')
-        if (existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already active')
-        if (!reqBody.token === existUser.verifyToken) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Token is invalid!')
+        if (existUser.is_active) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already active')
+        if (!reqBody.token === existUser.verify_token) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Token is invalid!')
 
         //Update lại thông tin của user về để verify Account
         const updateData = {
-            isActive: true,
-            verifyToken: null
+            is_active: true,
+            verify_token: null
         }
 
-        const updatedUser = await userModel.update(existUser._id, updateData)
+        const updatedUser = await userModel.update(existUser.id, updateData)
 
         return pickUser(updatedUser)
     } catch (error) { throw error }
@@ -81,14 +78,14 @@ const login = async (reqBody) => {
         const existUser = await userModel.findOneByEmail(reqBody.email)
 
         if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found!')
-        if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
+        if (!existUser.is_active) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
         if (!bcryptjs.compareSync(reqBody.password, existUser.password)) {
             throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your Email or Password is incorrect!')
         }
 
         /**Tạo Tokens đăng nhập trả về cho phía FE*/
-        //Tạo thông tin để đính kèm trong JWT Token bao gồm _id và email
-        const userInfo = { _id: existUser._id, email: existUser.email }
+        //Tạo thông tin để đính kèm trong JWT Token bao gồm id và email
+        const userInfo = { id: existUser.id, email: existUser.email }
 
         //Tạo ra 2 loại token, accessToken và refreshToken để trả về FE
         const accessToken = await JwtProvider.generateToken(
@@ -118,7 +115,7 @@ const refreshToken = async (clientRefreshToken) => {
 
         //Đã lưu thông tin unique và cố định của user trong token rồi, vì vậy lấy luôn từ decoded để tiết kiệm query vào data
         const userInfo = {
-            _id: refreshTokenDecoded._id,
+            id: refreshTokenDecoded.id,
             email: refreshTokenDecoded.email
         }
 
@@ -138,7 +135,7 @@ const update = async (userId, reqBody, userAvatarFile) => {
         // Query User và kiểm tra
         const existUser = await userModel.findOneById(userId)
         if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found!')
-        if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
+        if (!existUser.is_active) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
 
         // Khởi tạo kết quả updated User ban đầu là empty
         let updateUser = {}
@@ -150,7 +147,7 @@ const update = async (userId, reqBody, userAvatarFile) => {
                 throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your current password is incorrect!!')
             }
             //Nếu current_pasword đúng, hash mật khẩu mưới và update vào DB
-            updateUser = await userModel.update(existUser._id, {
+            updateUser = await userModel.update(existUser.id, {
                 password: bcryptjs.hashSync(reqBody.new_password, 8)
             })
         } else if (userAvatarFile) {
@@ -159,13 +156,13 @@ const update = async (userId, reqBody, userAvatarFile) => {
             // console.log('uploadResult: ', uploadResult)
 
             //Lưu lại url (secure_url) vào database
-            updateUser = await userModel.update(existUser._id, {
+            updateUser = await userModel.update(existUser.id, {
                 avatar: uploadResult.secure_url
             })
         }
         else {
             //Trường hợp update các thông tin chung(displayName)
-            updateUser = await userModel.update(existUser._id, reqBody)
+            updateUser = await userModel.update(existUser.id, reqBody)
         }
 
         return pickUser(updateUser)

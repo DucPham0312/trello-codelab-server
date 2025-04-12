@@ -10,7 +10,7 @@
           "babel-node",
           "src/server.js"
         ],
-        "cwd": "${workspaceFolder}",
+        "cwd": "${workspaceFolder}",    
         "env": {
           "BUILD_MODE": "dev"
         },
