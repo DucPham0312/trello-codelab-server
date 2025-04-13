@@ -159,7 +159,7 @@ const deleteItem = async (id) => {
 
 const addMember = async (userId, cardId) => {
     try {
-        const query = 'INSERT INTO card_members (card_id, user_id) VALUES (?, ?)'
+        const query = 'INSERT IGNORE INTO card_members (card_id, user_id) VALUES (?, ?)'
         await db.query(query, [cardId, userId])
     } catch (error) {
         throw new Error(error)
