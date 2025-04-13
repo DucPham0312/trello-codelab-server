@@ -7,72 +7,73 @@ import { boardModel } from './boardModel'
 const CARD_SCHEMA = Joi.object({
     column_id: Joi.string().required(),
     board_id: Joi.string().required(),
-    title: Joi.string().required().trim().strict(),
-    description: Joi.string().trim().strict(),
-    cover_url: Joi.string().trim().strict(),
-    position: Joi.number().integer().default(0)
+    title: Joi.string().required().min(3).max(50).trim().strict(),
+    description: Joi.string().allow(null),
+    cover_url: Joi.string().allow(null),
+    deadline: Joi.date().allow(null),
+    is_completed: Joi.boolean().default(false),
+    google_event_id: Joi.string().allow(null)
 })
 
 const validateBeforeCreate = async (data) => {
     return await CARD_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNew = async (data, userId) => {
+const INVALID_UPDATE_FIELDS = ['id', 'board_id', 'created_at']
+
+
+const createNew = async (userId, data) => {
     try {
         const validData = await validateBeforeCreate(data)
 
-        // Check if column exists
-        const column = await columnModel.findOneById(validData.column_id)
-        if (!column) {
-            throw new Error('Column not found')
-        }
-
-        // Check if board exists
         const board = await boardModel.findOneById(validData.board_id)
         if (!board) {
             throw new Error('Board not found')
         }
 
+        const column = await columnModel.findOneById(validData.column_id)
+        if (!column) {
+            throw new Error('Column not found')
+        }
+
         const id = uuidv4()
 
-        // Start transaction
+        // Bắt đầu transaction
         await db.query('START TRANSACTION')
 
         try {
-            // Insert card
-            const cardQuery = `
+            // Tính position hiện tại dựa trên số lượng card đang có
+            const [rows] = await db.query(
+                'SELECT COUNT(*) AS total FROM cards WHERE column_id = ?',
+                [validData.column_id]
+            )
+            const finalPosition = rows[0].total
+
+            // Tạo card mới
+            const query = `
                 INSERT INTO cards (
-                    id, column_id, board_id, title, description, cover_url, position
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    id, board_id, column_id, title, position, description
+                ) VALUES (?, ?, ?, ?, ?, ?)
             `
+            const values = [id, validData.board_id, validData.column_id, validData.title, finalPosition, validData.description]
 
-            const cardValues = [
-                id,
-                validData.column_id,
-                validData.board_id,
-                validData.title,
-                validData.description,
-                validData.cover_url,
-                validData.position
-            ]
+            await db.query(query, values)
 
-            await db.query(cardQuery, cardValues)
+            await db.query(`
+                INSERT INTO card_members (card_id, user_id) VALUES (?, ?)
+              `, [id, userId])
 
-            // Add creator as card member
-            const memberQuery = `
-                INSERT INTO card_members (
-                    card_id, user_id
-                ) VALUES (?, ?)
-            `
-
-            await db.query(memberQuery, [id, userId])
-
-            // Commit transaction
             await db.query('COMMIT')
 
-            return { id, ...validData }
+            return {
+                id,
+                board_id: validData.board_id,
+                column_id: validData.column_id,
+                title: validData.title,
+                position: finalPosition,
+                description: validData.description
+            }
         } catch (error) {
-            // Rollback transaction
             await db.query('ROLLBACK')
             throw error
         }
@@ -111,34 +112,64 @@ const findAllByBoardId = async (boardId) => {
     }
 }
 
-const update = async (id, data) => {
+const update = async (cardId, updateData) => {
     try {
-        const validData = await validateBeforeCreate(data)
-        const fields = []
-        const values = []
-
-        Object.entries(validData).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'column_id' && key !== 'board_id' && key !== 'created_at') {
-                fields.push(`${key} = ?`)
-                values.push(value)
+        // Lọc field không cho phép cập nhật
+        Object.keys(updateData).forEach(fieldName => {
+            if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+                delete updateData[fieldName]
             }
         })
 
-        values.push(id)
-        const query = `UPDATE cards SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        // Nếu không còn field hợp lệ nào để cập nhật
+        if (Object.keys(updateData).length === 0) {
+            throw new Error('No valid fields to update.')
+        }
+
+        const fields = []
+        const values = []
+
+        for (const key in updateData) {
+            fields.push(`${key} = ?`)
+            values.push(updateData[key])
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP')
+
+        values.push(cardId)
+
+        const query = `UPDATE cards SET ${fields.join(', ')} WHERE id = ?`
         await db.query(query, values)
 
-        return await findOneById(id)
+        return await findOneById(cardId)
     } catch (error) {
         throw new Error(error)
     }
 }
 
-const deleteOne = async (id) => {
+const deleteItem = async (id) => {
     try {
         const query = 'DELETE FROM cards WHERE id = ?'
         await db.query(query, [id])
         return true
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const addMember = async (userId, cardId) => {
+    try {
+        const query = 'INSERT INTO card_members (card_id, user_id) VALUES (?, ?)'
+        await db.query(query, [cardId, userId])
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const deleteMember = async (userId, cardId) => {
+    try {
+        const query = 'DELETE FROM card_members WHERE card_id = ? AND user_id = ?'
+        await db.query(query, [cardId, userId])
     } catch (error) {
         throw new Error(error)
     }
@@ -151,5 +182,7 @@ export const cardModel = {
     findAllByColumnId,
     findAllByBoardId,
     update,
-    deleteOne
-} 
+    deleteItem,
+    addMember,
+    deleteMember
+}

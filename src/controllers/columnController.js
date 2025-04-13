@@ -3,14 +3,16 @@ import { columnService } from '~/services/columnService'
 
 const createNew = async (req, res, next) => {
     try {
-        const createdColumn = await columnService.creatNew(req.body)
+        const createdColumn = await columnService.createNew(req.body)
         res.status(StatusCodes.CREATED).json(createdColumn)
     } catch (error) { next(error) }
 }
 
 const getAllColumns = async (req, res, next) => {
     try {
-        const columns = await columnService.getAllColumns()
+        const userId = req.jwtDecoded.id
+        const boardId = req.params.id
+        const columns = await columnService.getAllColumns(userId, boardId)
         //Có kết quả thì trả về Client
         res.status(StatusCodes.OK).json(columns)
     } catch (error) { next(error) }
@@ -18,10 +20,10 @@ const getAllColumns = async (req, res, next) => {
 
 const getDetails = async (req, res, next) => {
     try {
-        // console.log('req.params: ', req.params)
-        const columnId = req.params.id
-
-        const column = await columnService.getDetails(columnId)
+        const userId = req.jwtDecoded.id
+        const boardId = req.params.boardId
+        const columnId = req.params.columnId
+        const column = await columnService.getDetails(userId, boardId, columnId)
 
         //Có kết quả thì trả về Client
         res.status(StatusCodes.OK).json(column)
@@ -30,20 +32,22 @@ const getDetails = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
-        const columnId = req.params.id
-        const columnCoverFile = req.file
-        const userInfo = req.jwtDecoded
-        const updatedColumn = await columnService.update(columnId, req.body, columnCoverFile, userInfo)
+        const userId = req.jwtDecoded.id
+        const boardId = req.params.boardId
+        const columnId = req.params.columnId
+        const updatedColumn = await columnService.update(userId, boardId, columnId, req.body)
 
         //Có kết quả thì trả về Client
         res.status(StatusCodes.OK).json(updatedColumn)
     } catch (error) { next(error) }
 }
 
-const deleteItem = async (req, res, next) => {
+const deleteItems = async (req, res, next) => {
     try {
-        const columnId = req.params.id
-        const result = await columnService.deleteItem(columnId)
+        const userId = req.jwtDecoded.id
+        const boardId = req.params.id
+        const { ids } = req.body
+        const result = await columnService.deleteItems(userId, boardId, ids)
 
         //Có kết quả thì trả về Client
         res.status(StatusCodes.OK).json(result)
@@ -55,5 +59,5 @@ export const columnController = {
     getAllColumns,
     getDetails,
     update,
-    deleteItem
+    deleteItems
 }

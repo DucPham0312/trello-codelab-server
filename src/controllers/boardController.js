@@ -1,5 +1,6 @@
 import { StatusCodes } from 'http-status-codes'
 import { boardService } from '~/services/boardService'
+import ApiError from '~/utils/ApiError'
 
 const createNew = async (req, res, next) => {
     try {
@@ -42,27 +43,35 @@ const update = async (req, res, next) => {
     try {
         const boardId = req.params.id
         const boardCoverFile = req.file
-        const userInfo = req.jwtDecoded
-        const updatedBoard = await boardService.update(boardId, req.body, boardCoverFile, userInfo)
+        const userId = req.jwtDecoded.id
+        const updatedBoard = await boardService.update(boardId, req.body, boardCoverFile, userId)
         //Có kết quả thì trả về Client
         res.status(StatusCodes.OK).json(updatedBoard)
     } catch (error) { next(error) }
 }
 
-const deleteItem = async (req, res, next) => {
+const deleteSoftItems = async (req, res, next) => {
     try {
-        const boardId = req.params.id
-        const result = await boardService.deleteItem(boardId)
+        const { ids } = req.body
+        const userId = req.jwtDecoded.id
 
-        //Có kết quả thì trả về Client
+        if (!Array.isArray(ids) || ids.length === 0) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid or empty ids array')
+        }
+
+        const result = await boardService.deleteSoftItems(userId, ids)
+
         res.status(StatusCodes.OK).json(result)
-    } catch (error) { next(error) }
+    } catch (error) {
+        next(error)
+    }
 }
+
 
 export const boardController = {
     createNew,
     getAllBoards,
     getDetails,
     update,
-    deleteItem
+    deleteSoftItems
 }

@@ -1,7 +1,7 @@
 import Joi from 'joi'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
-import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
+
 
 const createNew = async (req, res, next) => {
     const correctCondition = Joi.object({
@@ -10,7 +10,9 @@ const createNew = async (req, res, next) => {
         title: Joi.string().required().min(3).max(50).trim().strict(),
         description: Joi.string().allow(null),
         cover_url: Joi.string().allow(null),
-        position: Joi.number().integer().default(0)
+        deadline: Joi.date().allow(null),
+        is_completed: Joi.boolean().default(false),
+        google_event_id: Joi.string().allow(null)
     })
 
     try {
@@ -20,6 +22,7 @@ const createNew = async (req, res, next) => {
         next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
     }
 }
+
 
 const update = async (req, res, next) => {
     const correctCondition = Joi.object({
@@ -37,12 +40,15 @@ const update = async (req, res, next) => {
     }
 }
 
-const deleteItem = async (req, res, next) => {
-    const corectCondition = Joi.object({
-        id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+const idItems = async (req, res, next) => {
+    const correctCondition = Joi.object({
+        ids: Joi.array().items(
+            Joi.string().required()
+        ).min(1).required()
     })
+
     try {
-        await corectCondition.validateAsync(req.params)
+        await correctCondition.validateAsync(req.body, { abortEarly: false })
         next()
     } catch (error) {
         next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
@@ -52,5 +58,5 @@ const deleteItem = async (req, res, next) => {
 export const cardValidation = {
     createNew,
     update,
-    deleteItem
+    idItems
 }

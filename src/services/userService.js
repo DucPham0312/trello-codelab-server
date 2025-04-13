@@ -151,9 +151,8 @@ const update = async (userId, reqBody, userAvatarFile) => {
                 password: bcryptjs.hashSync(reqBody.new_password, 8)
             })
         } else if (userAvatarFile) {
-            //Trường hợp upload file lên cloud storage (Cloundinary)
+            //upload file lên cloud storage (Cloundinary)
             const uploadResult = await CloudinaryProvider.streamUpload(userAvatarFile.buffer, 'users')
-            // console.log('uploadResult: ', uploadResult)
 
             //Lưu lại url (secure_url) vào database
             updateUser = await userModel.update(existUser.id, {
@@ -161,7 +160,7 @@ const update = async (userId, reqBody, userAvatarFile) => {
             })
         }
         else {
-            //Trường hợp update các thông tin chung(displayName)
+            //update thông tin chung
             updateUser = await userModel.update(existUser.id, reqBody)
         }
 

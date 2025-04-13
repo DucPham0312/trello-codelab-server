@@ -6,8 +6,7 @@ import { boardModel } from './boardModel'
 // Định nghĩa schema cho column
 const COLUMN_SCHEMA = Joi.object({
     board_id: Joi.string().required(),
-    title: Joi.string().required().trim().strict(),
-    position: Joi.number().integer().default(0)
+    title: Joi.string().required().trim().strict()
 })
 
 // Kiểm tra dữ liệu trước khi tạo column mới
@@ -15,11 +14,12 @@ const validateBeforeCreate = async (data) => {
     return await COLUMN_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
+const INVALID_UPDATE_FIELDS = ['id', 'board_id', 'created_at']
+
 const createNew = async (data) => {
     try {
         const validData = await validateBeforeCreate(data)
-        
-        // Kiểm tra board có tồn tại không
+
         const board = await boardModel.findOneById(validData.board_id)
         if (!board) {
             throw new Error('Board not found')
@@ -27,32 +27,36 @@ const createNew = async (data) => {
 
         const id = uuidv4()
 
-        // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
+        // Bắt đầu transaction
         await db.query('START TRANSACTION')
 
         try {
+            // Tính position hiện tại dựa trên số lượng column đang có
+            const [rows] = await db.query(
+                'SELECT COUNT(*) AS total FROM columns WHERE board_id = ?',
+                [validData.board_id]
+            )
+            const finalPosition = rows[0].total
+
             // Tạo column mới
             const query = `
                 INSERT INTO columns (
                     id, board_id, title, position
                 ) VALUES (?, ?, ?, ?)
             `
-
-            const values = [
-                id,
-                validData.board_id,
-                validData.title,
-                validData.position
-            ]
+            const values = [id, validData.board_id, validData.title, finalPosition]
 
             await db.query(query, values)
 
-            // Commit transaction nếu thành công
             await db.query('COMMIT')
 
-            return { id, ...validData }
+            return {
+                id,
+                board_id: validData.board_id,
+                title: validData.title,
+                position: finalPosition
+            }
         } catch (error) {
-            // Rollback nếu có lỗi
             await db.query('ROLLBACK')
             throw error
         }
@@ -61,11 +65,11 @@ const createNew = async (data) => {
     }
 }
 
-// Tìm column theo id
-const findOneById = async (id) => {
+
+const findOneById = async (columnId) => {
     try {
         const query = 'SELECT * FROM columns WHERE id = ?'
-        const [rows] = await db.query(query, [id])
+        const [rows] = await db.query(query, [columnId])
         return rows[0] || null
     } catch (error) {
         throw new Error(error)
@@ -84,32 +88,43 @@ const findAllByBoardId = async (boardId) => {
 }
 
 // Cập nhật thông tin column
-const update = async (id, data) => {
+const update = async (columnId, updateData) => {
     try {
-        const validData = await validateBeforeCreate(data)
-        const fields = []
-        const values = []
-
-        // Chỉ cập nhật các trường được phép
-        Object.entries(validData).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'board_id' && key !== 'created_at') {
-                fields.push(`${key} = ?`)
-                values.push(value)
+        // Lọc field không cho phép cập nhật
+        Object.keys(updateData).forEach(fieldName => {
+            if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+                delete updateData[fieldName]
             }
         })
 
-        values.push(id)
-        const query = `UPDATE columns SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        // Nếu không còn field hợp lệ nào để cập nhật
+        if (Object.keys(updateData).length === 0) {
+            throw new Error('No valid fields to update.')
+        }
+
+        const fields = []
+        const values = []
+
+        for (const key in updateData) {
+            fields.push(`${key} = ?`)
+            values.push(updateData[key])
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP')
+
+        values.push(columnId)
+
+        const query = `UPDATE columns SET ${fields.join(', ')} WHERE id = ?`
         await db.query(query, values)
 
-        return await findOneById(id)
+        return await findOneById(columnId)
     } catch (error) {
         throw new Error(error)
     }
 }
 
 // Xóa column
-const deleteOne = async (id) => {
+const deleteItems = async (id) => {
     try {
         const query = 'DELETE FROM columns WHERE id = ?'
         await db.query(query, [id])
@@ -125,5 +140,5 @@ export const columnModel = {
     findOneById,
     findAllByBoardId,
     update,
-    deleteOne
+    deleteItems
 }

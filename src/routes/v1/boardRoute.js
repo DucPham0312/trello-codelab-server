@@ -17,6 +17,9 @@ Router.route('/:id')
         multerUploadMiddleware.upload.single('boardCover'),
         boardValidation.update,
         boardController.update)
-    .delete(authMiddleware.isAuthorized, boardValidation.deleteItem, boardController.deleteItem)
+
+
+Router.route('/delete')
+    .delete(authMiddleware.isAuthorized, boardValidation.deleteItems, boardController.deleteSoftItems)
 
 export const boardRoute = Router

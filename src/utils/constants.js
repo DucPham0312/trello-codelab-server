@@ -32,3 +32,8 @@ export const MEMBER_ACTIONS = {
     ADD: 'ADD',
     REMOVE: 'REMOVE'
 }
+
+export const PERMISSION_TYPE = {
+    READ: 'read',
+    WRITE: 'write'
+}

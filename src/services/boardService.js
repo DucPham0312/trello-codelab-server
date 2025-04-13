@@ -1,12 +1,10 @@
 /* eslint-disable no-useless-catch */
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
-import { cloneDeep } from 'lodash'
-import { columnModel } from '~/models/columnModel'
-import { cardModel } from '~/models/cardModel'
 import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import { boardModel } from '~/models/boardModel'
+import { util } from '~/utils/util'
 
 const createNew = async (userId, data) => {
     try {
@@ -38,7 +36,8 @@ const getAllBoards = async (userId, page, itemsPerPage, queryFilters) => {
 
 const getDetails = async (userId, boardId) => {
     try {
-        const board = await boardModel.findOneById(userId, boardId)
+        await util.checkBoardPermission(userId, boardId)
+        const board = await boardModel.findOneById(boardId)
         if (!board) {
             throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
         }
@@ -48,15 +47,23 @@ const getDetails = async (userId, boardId) => {
     }
 }
 
-const update = async (boardId, reqBody) => {
+const update = async (boardId, reqBody, boardCoverFile, userId) => {
     try {
-        const updateData = {
-            ...reqBody
-        }
+        await util.checkBoardPermission(userId, boardId)
+        let updatedBoard = {}
 
-        const updatedBoard = await boardModel.update(boardId, updateData)
-        if (!updatedBoard) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+        if (boardCoverFile) {
+            //Upload cover lên cloud storage (Cloundinary)
+            const uploadResult = await CloudinaryProvider.streamUpload(boardCoverFile.buffer, 'boards')
+
+            //Lưu lại url (secure_url) vào database
+            updatedBoard = await boardModel.update(boardId, {
+                cover: uploadResult.secure_url
+            }, userId)
+        }
+        else {
+            //update thông tin chung
+            updatedBoard = await boardModel.update(boardId, reqBody)
         }
 
         return updatedBoard
@@ -65,24 +72,38 @@ const update = async (boardId, reqBody) => {
     }
 }
 
-const deleteItem = async (boardId) => {
+const deleteSoftItems = async (userId, boardIds) => {
     try {
-        const targetBoard = await boardModel.findOneById(boardId)
-        if (!targetBoard) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+        const results = []
+        for (const boardId of boardIds) {
+
+            const board = await boardModel.findOneById(boardId)
+
+            if (!board) {
+                results.push({ message: `Board with id ${boardId} not found!` })
+                continue
+            }
+
+            if (board.created_by !== userId) {
+                results.push({ message: `You are not allowed to delete the ${board.title} board.` })
+                continue
+            }
+
+            await boardModel.deleteSoftOne(boardId)
+            results.push({ message: `${board.title} board deleted successfully!` })
         }
 
-        await boardModel.deleteOne(boardId)
-        return { deleteResult: 'Board deleted successfully!' }
+        return results
     } catch (error) {
         throw new Error(error)
     }
 }
+
 
 export const boardService = {
     createNew,
     getAllBoards,
     getDetails,
     update,
-    deleteItem
+    deleteSoftItems
 }

@@ -1,27 +1,35 @@
 import { cardModel } from '~/models/cardModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
+import { util } from '~/utils/util'
+import { PERMISSION_TYPE } from '~/utils/constants'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+import { userModel } from '~/models/userModel'
 
-const createNew = async (reqBody) => {
+const createNew = async (userId, reqBody) => {
     try {
-        const newCard = {
-            column_id: reqBody.column_id,
-            board_id: reqBody.board_id,
-            title: reqBody.title,
-            description: reqBody.description,
-            cover_url: reqBody.cover_url,
-            position: reqBody.position
-        }
+        const createdCard = await cardModel.createNew(userId, reqBody)
+        const getNewCard = await cardModel.findOneById(createdCard.id)
 
-        const createdCard = await cardModel.createNew(newCard)
-        return createdCard
+        return getNewCard
     } catch (error) {
         throw new Error(error)
     }
 }
 
-const getDetails = async (cardId) => {
+const getAllCards = async (userId, boardId, columnId) => {
     try {
+        await util.checkBoardPermission(userId, boardId)
+        const cards = await cardModel.findAllByColumnId(columnId)
+        return cards
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const getDetails = async (userId, boardId, cardId) => {
+    try {
+        await util.checkBoardPermission(userId, boardId)
         const card = await cardModel.findOneById(cardId)
         if (!card) {
             throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
@@ -32,15 +40,23 @@ const getDetails = async (cardId) => {
     }
 }
 
-const update = async (cardId, reqBody) => {
+const update = async (userId, boardId, cardId, reqBody, cardCoverFile) => {
     try {
-        const updateData = {
-            ...reqBody
-        }
+        await util.checkBoardPermission(userId, boardId, PERMISSION_TYPE.WRITE)
+        let updatedCard = {}
 
-        const updatedCard = await cardModel.update(cardId, updateData)
-        if (!updatedCard) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
+        if (cardCoverFile) {
+            //Upload cover lên cloud storage (Cloundinary)
+            const uploadResult = await CloudinaryProvider.streamUpload(cardCoverFile.buffer, 'cards')
+
+            //Lưu lại url (secure_url) vào database
+            updatedCard = await cardModel.update(cardId, {
+                cover_url: uploadResult.secure_url
+            }, userId)
+        }
+        else {
+            //update thông tin chung
+            updatedCard = await cardModel.update(cardId, reqBody)
         }
 
         return updatedCard
@@ -49,15 +65,70 @@ const update = async (cardId, reqBody) => {
     }
 }
 
-const deleteItem = async (cardId) => {
+const deleteItems = async (userId, boardId, ids) => {
     try {
-        const targetCard = await cardModel.findOneById(cardId)
-        if (!targetCard) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
+        const results = []
+        for (const cardId of ids) {
+            await util.checkBoardPermission(userId, boardId, PERMISSION_TYPE.WRITE)
+
+            const card = await cardModel.findOneById(cardId)
+
+            if (!card) {
+                results.push({ message: `Card with id ${cardId} not found!` })
+                continue
+            }
+
+            await cardModel.deleteItem(cardId)
+            results.push({ message: `${card.title} card deleted successfully!` })
         }
 
-        await cardModel.deleteOne(cardId)
-        return { deleteResult: 'Card deleted successfully!' }
+        return results
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const addMembers = async (userId, boardId, cardId, ids) => {
+    try {
+        const results = []
+        for (const userAdd of ids) {
+            await util.checkBoardPermission(userId, boardId, PERMISSION_TYPE.WRITE)
+
+            const user = await userModel.findOneById(userAdd)
+
+            if (!user) {
+                results.push({ message: `User ${user.email} not found!` })
+                continue
+            }
+
+            await cardModel.addMember(userAdd, cardId)
+            results.push({ message: `Add ${user.email} successfully!` })
+        }
+
+        return results
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+const deleteMembers = async (userId, boardId, cardId, ids) => {
+    try {
+        const results = []
+        for (const userAdd of ids) {
+            await util.checkBoardPermission(userId, boardId, PERMISSION_TYPE.WRITE)
+
+            const user = await userModel.findOneById(userAdd)
+
+            if (!user) {
+                results.push({ message: `User ${user.email} not found!` })
+                continue
+            }
+
+            await cardModel.deleteMember(userAdd, cardId)
+            results.push({ message: `Delete ${user.email} successfully!` })
+        }
+
+        return results
     } catch (error) {
         throw new Error(error)
     }
@@ -67,5 +138,8 @@ export const cardService = {
     createNew,
     getDetails,
     update,
-    deleteItem
+    deleteItems,
+    getAllCards,
+    addMembers,
+    deleteMembers
 }

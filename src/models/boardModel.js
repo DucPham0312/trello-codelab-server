@@ -1,8 +1,7 @@
 import Joi from 'joi'
 import db from '~/utils/db'
 import { v4 as uuidv4 } from 'uuid'
-import { StatusCodes } from 'http-status-codes'
-import ApiError from '~/utils/ApiError'
+import { pagingSkipValue } from '~/utils/algorithms'
 
 const BOARD_SCHEMA = Joi.object({
     title: Joi.string().required().trim().strict(),
@@ -14,6 +13,8 @@ const BOARD_SCHEMA = Joi.object({
 const validateBeforeCreate = async (data) => {
     return await BOARD_SCHEMA.validateAsync(data, { abortEarly: false })
 }
+
+const INVALID_UPDATE_FIELDS = ['id', 'createdAt']
 
 const createNew = async (userId, data) => {
     try {
@@ -65,20 +66,8 @@ const createNew = async (userId, data) => {
     }
 }
 
-const findOneById = async (userId, boardId) => {
+const findOneById = async (boardId) => {
     try {
-        // Check if user has access to this board
-        const ownerQuery = `
-            SELECT * FROM board_owners 
-            WHERE board_id = ? AND user_id = ?
-        `
-        const [ownerRows] = await db.query(ownerQuery, [boardId, userId])
-
-        if (!ownerRows.length) {
-            throw new ApiError(StatusCodes.FORBIDDEN, 'Do not have permission to view this board')
-        }
-
-        // If user has access, get board details
         const boardQuery = 'SELECT * FROM boards WHERE id = ? AND is_deleted = false'
         const [boardRows] = await db.query(boardQuery, [boardId])
 
@@ -89,40 +78,108 @@ const findOneById = async (userId, boardId) => {
     }
 }
 
-const findAll = async () => {
+const getAllBoards = async (userId, page, itemsPerPage, queryFilters) => {
     try {
-        const query = 'SELECT * FROM boards WHERE is_deleted = false ORDER BY created_at DESC'
-        const [rows] = await db.query(query)
-        return rows
+        // Lấy danh sách boards mà user có quyền truy cập (DISTINCT: loại bỏ bản ghi trùng)
+        let query = `
+        SELECT DISTINCT b.*
+        FROM boards b
+        INNER JOIN board_owners bo ON b.id = bo.board_id 
+        WHERE b.is_deleted = false
+        AND bo.user_id = ?
+      `
+        const values = [userId]
+
+        // Nếu có từ khóa tìm kiếm, thêm điều kiện lọc theo title hoặc description
+        if (queryFilters && queryFilters.title) {
+            query += ' AND (b.title LIKE ? OR b.description LIKE ?)'
+            values.push(`%${queryFilters.title}%`, `%${queryFilters.title}%`)
+        }
+
+        // Sắp xếp theo thời gian tạo giảm dần
+        query += ' ORDER BY b.created_at DESC'
+
+        // Thêm phân trang: LIMIT và OFFSET
+        const offset = pagingSkipValue(page, itemsPerPage)
+        query += ' LIMIT ? OFFSET ?'
+        values.push(itemsPerPage, offset)
+
+        // Thực thi truy vấn lấy danh sách boards phân trang
+        const [boards] = await db.query(query, values)
+
+        // Truy vấn lấy tổng số lượng boards (phục vụ phân trang)
+        let countQuery = `
+        SELECT COUNT(DISTINCT b.id) as total
+        FROM boards b
+        INNER JOIN board_owners bo ON b.id = bo.board_id
+        WHERE b.is_deleted = false 
+        AND bo.user_id = ?
+      `
+        const countValues = [userId]
+
+        // Nếu có filter thì thêm điều kiện tương ứng trong truy vấn đếm
+        if (queryFilters && queryFilters.title) {
+            countQuery += ' AND (b.title LIKE ? OR b.description LIKE ?)'
+            countValues.push(`%${queryFilters.title}%`, `%${queryFilters.title}%`)
+        }
+
+        // Thực thi truy vấn đếm tổng số lượng boards
+        const [totalCount] = await db.query(countQuery, countValues)
+
+        // Trả về kết quả gồm danh sách boards và metadata phân trang
+        return {
+            boards,
+            meta: {
+                page: page,
+                itemsPerPage: itemsPerPage,
+                totalItems: totalCount[0].total,
+                totalPages: Math.ceil(totalCount[0].total / itemsPerPage)
+            }
+        }
+
     } catch (error) {
         throw new Error(error)
     }
 }
 
-const update = async (id, data) => {
-    try {
-        const validData = await validateBeforeCreate(data)
-        const fields = []
-        const values = []
 
-        Object.entries(validData).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'created_at') {
-                fields.push(`${key} = ?`)
-                values.push(value)
+const update = async (boardId, updateData) => {
+    try {
+        // Lọc field không cho phép cập nhật
+        Object.keys(updateData).forEach(fieldName => {
+            if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+                delete updateData[fieldName]
             }
         })
 
-        values.push(id)
-        const query = `UPDATE boards SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        // Nếu không còn field hợp lệ nào để cập nhật
+        if (Object.keys(updateData).length === 0) {
+            throw new Error('No valid fields to update.')
+        }
+
+        const fields = []
+        const values = []
+
+        for (const key in updateData) {
+            fields.push(`${key} = ?`)
+            values.push(updateData[key])
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP')
+
+        values.push(boardId)
+
+        const query = `UPDATE boards SET ${fields.join(', ')} WHERE id = ?`
         await db.query(query, values)
 
-        return await findOneById(id)
+        return await findOneById(boardId)
     } catch (error) {
         throw new Error(error)
     }
 }
 
-const deleteOne = async (id) => {
+
+const deleteSoftOne = async (id) => {
     try {
         const query = 'UPDATE boards SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
         await db.query(query, [id])
@@ -136,7 +193,7 @@ export const boardModel = {
     BOARD_SCHEMA,
     createNew,
     findOneById,
-    findAll,
+    getAllBoards,
     update,
-    deleteOne
+    deleteSoftOne
 }
