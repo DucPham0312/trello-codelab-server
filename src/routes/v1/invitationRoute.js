@@ -5,19 +5,22 @@ import { authMiddleware } from '~/middlewares/authMiddleware'
 
 const Router = express.Router()
 
-Router.route('/course')
+Router.route('/board')
     .post(
         authMiddleware.isAuthorized,
-        invitationValidation.createNewCourseInvitation,
-        invitationController.createNewCourseInvitation
+        invitationValidation.createNewBoardInvitation,
+        invitationController.createNewBoardInvitation
     )
 
 //Get intitation by User
 Router.route('/')
     .get(authMiddleware.isAuthorized, invitationController.getInvitations)
 
-//Update Course Invitation
-Router.route('/course/:invitationId')
-    .put(authMiddleware.isAuthorized, invitationController.updateCourseInvitation)
+Router.route('/:id')
+    .get(authMiddleware.isAuthorized, invitationController.findOneById)
+
+//Update Board Invitation
+Router.route('/board/:invitationId')
+    .put(authMiddleware.isAuthorized, invitationController.updateBoardInvitation)
 
 export const invitationRoute = Router

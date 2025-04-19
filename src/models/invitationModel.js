@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import db from '~/utils/db'
+import { INVITATION_TYPES, BOARD_INVITATION_STATUS } from '~/utils/constants'
 import { v4 as uuidv4 } from 'uuid'
 import { userModel } from './userModel'
 import { boardModel } from './boardModel'
@@ -8,13 +9,14 @@ import { boardModel } from './boardModel'
 const INVITATION_SCHEMA = Joi.object({
     inviter_id: Joi.string().required(),
     invited_id: Joi.string().required(),
-    type: Joi.string().valid('board', 'course').required(),
+    type: Joi.string().required().valid(...Object.values(INVITATION_TYPES)),
+    // Kiểm tra board_id khi type là board
     board_id: Joi.string().when('type', {
-        is: 'board',
+        is: INVITATION_TYPES.BOARD_INVITATION,
         then: Joi.required(),
         otherwise: Joi.optional()
     }),
-    status: Joi.string().valid('pending', 'accepted', 'rejected').default('pending'),
+    status: Joi.string().required().valid(...Object.values(BOARD_INVITATION_STATUS)),
     is_deleted: Joi.boolean().default(false)
 })
 
@@ -23,10 +25,26 @@ const validateBeforeCreate = async (data) => {
     return await INVITATION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNew = async (data) => {
+const INVALID_UPDATE_FIELDS = ['id', 'inviter_id', 'invited_id', 'type', 'created_at']
+
+
+const checkExistInvitee = async (boardId, userId) => {
+    try {
+        const [rows] = await db.query(
+            'SELECT 1 FROM board_owners WHERE board_id = ? AND user_id = ? LIMIT 1',
+            [boardId, userId]
+        )
+        return rows.length > 0
+    } catch (error) {
+        throw new Error(error)
+    }
+}
+
+
+const createNewBoardInvitation = async (data) => {
     try {
         const validData = await validateBeforeCreate(data)
-        
+
         // Kiểm tra người mời có tồn tại không
         const inviter = await userModel.findOneById(validData.inviter_id)
         if (!inviter) {
@@ -40,7 +58,7 @@ const createNew = async (data) => {
         }
 
         // Nếu là lời mời vào board, kiểm tra board có tồn tại không
-        if (validData.type === 'board' && validData.board_id) {
+        if (validData.type === INVITATION_TYPES.BOARD_INVITATION && validData.board_id) {
             const board = await boardModel.findOneById(validData.board_id)
             if (!board) {
                 throw new Error('Board not found')
@@ -84,22 +102,11 @@ const findOneById = async (id) => {
     }
 }
 
-// Lấy tất cả invitations của một board
-const findAllByBoardId = async (boardId) => {
-    try {
-        const query = 'SELECT * FROM invitations WHERE board_id = ? AND is_deleted = false'
-        const [rows] = await db.query(query, [boardId])
-        return rows
-    } catch (error) {
-        throw new Error(error)
-    }
-}
-
 // Lấy tất cả invitations của một user (cả người mời và được mời)
 const findAllByUserId = async (userId) => {
     try {
-        const query = 'SELECT * FROM invitations WHERE (inviter_id = ? OR invited_id = ?) AND is_deleted = false'
-        const [rows] = await db.query(query, [userId, userId])
+        const query = 'SELECT * FROM invitations WHERE invited_id = ? AND is_deleted = false'
+        const [rows] = await db.query(query, [userId])
         return rows
     } catch (error) {
         throw new Error(error)
@@ -107,29 +114,61 @@ const findAllByUserId = async (userId) => {
 }
 
 // Cập nhật thông tin invitation
-const update = async (id, data) => {
-    try {
-        const validData = await validateBeforeCreate(data)
-        const fields = []
-        const values = []
+const update = async (invitedId, invitationId, updateData) => {
+    const connection = await db.getConnection()
 
-        // Chỉ cập nhật các trường được phép
-        Object.entries(validData).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'inviter_id' && key !== 'invited_id' && key !== 'created_at') {
-                fields.push(`${key} = ?`)
-                values.push(value)
+    try {
+        await connection.beginTransaction()
+
+        Object.keys(updateData).forEach(fieldName => {
+            if (INVALID_UPDATE_FIELDS.includes(fieldName)) {
+                delete updateData[fieldName]
             }
         })
 
-        values.push(id)
-        const query = `UPDATE invitations SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-        await db.query(query, values)
+        if (Object.keys(updateData).length === 0) {
+            throw new Error('No valid fields to update.')
+        }
 
-        return await findOneById(id)
+        const fields = []
+        const values = []
+
+        for (const key in updateData) {
+            fields.push(`${key} = ?`)
+            values.push(updateData[key])
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP')
+        values.push(invitationId)
+
+        const query = `UPDATE invitations SET ${fields.join(', ')} WHERE id = ?`
+        await connection.query(query, values)
+
+        if (updateData.status === BOARD_INVITATION_STATUS.ACCEPTED) {
+            const ownerQuery = `
+                INSERT INTO board_owners (
+                    board_id, user_id
+                ) VALUES (?, ?)
+            `
+            await connection.query(ownerQuery, [updateData.board_id, invitedId])
+        }
+
+        await connection.commit()
+
+        const [rows] = await connection.query(
+            'SELECT * FROM invitations WHERE id = ?',
+            [invitationId]
+        )
+
+        return rows[0]
     } catch (error) {
-        throw new Error(error)
+        await connection.rollback()
+        throw error
+    } finally {
+        connection.release()
     }
 }
+
 
 // Xóa invitation (soft delete)
 const deleteOne = async (id) => {
@@ -142,54 +181,24 @@ const deleteOne = async (id) => {
     }
 }
 
-// Xử lý khi chấp nhận invitation
-const acceptInvitation = async (id) => {
+const deleteItem = async (id) => {
     try {
-        const invitation = await findOneById(id)
-        if (!invitation) {
-            throw new Error('Invitation not found')
-        }
-
-        // Nếu là lời mời vào board
-        if (invitation.type === 'board' && invitation.board_id) {
-            // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
-            await db.query('START TRANSACTION')
-
-            try {
-                // Cập nhật trạng thái invitation thành accepted
-                await update(id, { status: 'accepted' })
-
-                // Thêm user vào danh sách owner của board
-                const ownerQuery = `
-                    INSERT INTO board_owners (
-                        board_id, user_id
-                    ) VALUES (?, ?)
-                `
-
-                await db.query(ownerQuery, [invitation.board_id, invitation.invited_id])
-
-                // Commit transaction nếu thành công
-                await db.query('COMMIT')
-            } catch (error) {
-                // Rollback nếu có lỗi
-                await db.query('ROLLBACK')
-                throw error
-            }
-        }
-
-        return await findOneById(id)
+        const query = 'DELETE FROM invitations WHERE id = ?'
+        await db.query(query, [id])
+        return true
     } catch (error) {
         throw new Error(error)
     }
 }
 
+
 export const invitationModel = {
     INVITATION_SCHEMA,
-    createNew,
+    createNewBoardInvitation,
     findOneById,
-    findAllByBoardId,
     findAllByUserId,
     update,
     deleteOne,
-    acceptInvitation
+    checkExistInvitee,
+    deleteItem
 }

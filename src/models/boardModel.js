@@ -17,54 +17,49 @@ const validateBeforeCreate = async (data) => {
 const INVALID_UPDATE_FIELDS = ['id', 'createdAt']
 
 const createNew = async (userId, data) => {
+    const connection = await db.getConnection()
+
     try {
         const validData = await validateBeforeCreate(data)
         const id = uuidv4()
         const created_by = userId
 
-        // Start transaction
-        await db.query('START TRANSACTION')
+        await connection.beginTransaction()
 
-        try {
-            // Insert board
-            const boardQuery = `
-                INSERT INTO boards (
-                    id, title, description, type, created_by
-                ) VALUES (?, ?, ?, ?, ?)
-            `
+        // Insert board
+        const boardQuery = `
+            INSERT INTO boards (
+                id, title, description, type, created_by
+            ) VALUES (?, ?, ?, ?, ?)
+        `
+        const boardValues = [
+            id,
+            validData.title,
+            validData.description,
+            validData.type,
+            created_by
+        ]
+        await connection.query(boardQuery, boardValues)
 
-            const boardValues = [
-                id,
-                validData.title,
-                validData.description,
-                validData.type,
-                created_by
-            ]
+        // Insert board owner
+        const ownerQuery = `
+            INSERT INTO board_owners (
+                board_id, user_id
+            ) VALUES (?, ?)
+        `
+        await connection.query(ownerQuery, [id, userId])
 
-            await db.query(boardQuery, boardValues)
+        await connection.commit()
 
-            // Insert board owner
-            const ownerQuery = `
-                INSERT INTO board_owners (
-                    board_id, user_id
-                ) VALUES (?, ?)
-            `
-
-            await db.query(ownerQuery, [id, userId])
-
-            // Commit transaction
-            await db.query('COMMIT')
-
-            return { id, ...validData }
-        } catch (error) {
-            // Rollback transaction
-            await db.query('ROLLBACK')
-            throw error
-        }
+        return { id, ...validData }
     } catch (error) {
-        throw new Error(error)
+        await connection.rollback()
+        throw error
+    } finally {
+        connection.release()
     }
 }
+
 
 const findOneById = async (boardId) => {
     try {

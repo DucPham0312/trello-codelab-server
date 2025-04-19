@@ -2,10 +2,24 @@ import Joi from 'joi'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 
-const createNewCourseInvitation = async (req, res, next) => {
+const createNewBoardInvitation = async (req, res, next) => {
     const correctCondition = Joi.object({
         inviteeEmail: Joi.string().required(),
-        courseId: Joi.string().required()
+        boardId: Joi.string().required()
+    })
+
+    try {
+        await correctCondition.validateAsync(req.body, { abortEarly: false })
+        next()
+    } catch (error) {
+        next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
+    }
+}
+const deleteItems = async (req, res, next) => {
+    const correctCondition = Joi.object({
+        ids: Joi.array().items(
+            Joi.string().required()
+        ).min(1).required()
     })
 
     try {
@@ -17,5 +31,6 @@ const createNewCourseInvitation = async (req, res, next) => {
 }
 
 export const invitationValidation = {
-    createNewCourseInvitation
+    createNewBoardInvitation,
+    deleteItems
 }

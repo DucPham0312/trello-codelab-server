@@ -9,7 +9,7 @@ export const WHITELIST_DOMAINS = [
 
 export const WEBSITE_DOMAIN = (env.BUILD_MODE === 'production') ? env.WEBSITE_DOMAIN_PRODUCTION : env.WEBSITE_DOMAIN_DEVELOPMENT
 
-export const COURSE_LEVEL = {
+export const BOARD_LEVEL = {
     LEVEL1: 'Basic',
     LEVEL2: 'Intermediate',
     LEVEL3: 'Advanced'
@@ -19,10 +19,10 @@ export const DEFAULT_PAGE = 1
 export const DEFAULT_ITEMS_PER_PAGE = 5
 
 export const INVITATION_TYPES = {
-    COURSE_INVITATION: 'COURSE_INVITATION'
+    BOARD_INVITATION: 'BOARD_INVITATION'
 }
 
-export const COURSE_INVITATION_STATUS = {
+export const BOARD_INVITATION_STATUS = {
     PENDING: 'PENDING',
     ACCEPTED: 'ACCEPTED',
     REJECTED: 'REJECTED'
